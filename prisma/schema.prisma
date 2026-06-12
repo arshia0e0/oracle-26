@@ -8,6 +8,9 @@ generator client {
   output   = "../lib/generated/prisma"
 }
 
+// The connection is supplied at runtime through a driver adapter (lib/db.ts):
+// better-sqlite3 against dev.db locally, libsql against Turso in production.
+// Both speak SQLite, so one schema covers both.
 datasource db {
   provider = "sqlite"
 }

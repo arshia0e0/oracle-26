@@ -9,7 +9,7 @@ Every fixture of the tournament is scored by six large language models — "The 
 - [Next.js](https://nextjs.org) (App Router)
 - TypeScript
 - [Prisma](https://www.prisma.io) ORM
-- SQLite
+- SQLite (local development) / [Turso](https://turso.tech) (production)
 
 ## The Contestants
 
@@ -49,6 +49,27 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to see the result.
+
+Local development uses a SQLite file (`dev.db`) — no extra setup needed.
+
+## Production Database (Turso)
+
+In production the app talks to [Turso](https://turso.tech) over libsql.
+Setting `TURSO_DATABASE_URL` is what flips the switch; without it the app
+stays on local SQLite.
+
+```bash
+# one-time: create the database and grab credentials
+turso db create worldcup-ai
+turso db show worldcup-ai --url        # -> TURSO_DATABASE_URL
+turso db tokens create worldcup-ai     # -> TURSO_AUTH_TOKEN
+
+# push the local schema + data to Turso (safe to re-run, full overwrite)
+npm run setup-turso
+```
+
+Set `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` in your hosting provider's
+environment variables and deploy.
 
 ## Screenshots
 
