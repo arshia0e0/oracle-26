@@ -324,6 +324,13 @@ img { display: block; }
   color: var(--chalk-faint);
 }
 .cd-sep { font-family: var(--display); font-size: clamp(2rem,5vw,4rem); color: var(--grass); line-height: 0.8; }
+/* mobile: tighter clock so DD:HH:MM:SS never overflows a ~375px slab */
+@media (max-width: 480px) {
+  .countdown { padding: 1.3rem 1.2rem; }
+  .countdown__clock { gap: 0.8rem; }
+  .cd-unit__num { font-size: clamp(2rem, 10vw, 4.6rem); }
+  .cd-sep { font-size: clamp(1.6rem, 8vw, 4rem); }
+}
 
 /* — Next-match scoreboard slab ------------------------------------------- */
 .scoreboard {
@@ -663,8 +670,38 @@ img { display: block; }
   margin-top: 0.35rem;
 }
 
-@media (max-width: 420px) {
-  .starstack { transform: scale(0.86); transform-origin: top left; }
+/* mobile: the two piles can no longer sit side by side, so flatten them
+   into a simple 2-up grid — every card visible, two beside each other,
+   scaled fluidly to the column width. !important is needed to beat the
+   inline pile offsets (left/top/rotate) set per slot in PlayerCard. */
+@media (max-width: 880px) {
+  .starstacks {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem 1rem;
+    justify-items: center;
+  }
+  .starstack { display: contents; }
+  .pcard-slot {
+    position: static !important;
+    transform: none !important;
+    width: 100%;
+    max-width: 220px;
+  }
+  .pcard {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 3;
+  }
+}
+/* tighter type and headshot so the card face fits a ~160px column */
+@media (max-width: 480px) {
+  .pcard__photo {
+    width: clamp(84px, 26vw, 124px);
+    height: clamp(84px, 26vw, 124px);
+  }
+  .pcard__number { font-size: 4.6rem; }
+  .pcard__name { font-size: 1.05rem; }
 }
 
 /* ============================================================================
@@ -689,6 +726,14 @@ img { display: block; }
 .ft-c--pts { color: var(--chalk); font-size: 1.15rem; }
 .ft-row--lead { background: rgba(120,255,170,0.04); }
 .ft-row:not(.ft-row--head):hover { background: rgba(120,255,170,0.05); }
+/* mobile: narrower stat columns so the oracle name keeps room to breathe */
+@media (max-width: 560px) {
+  .ft-row { grid-template-columns: 34px 1fr repeat(3, 52px); padding: 0.85rem 0.9rem; }
+  .ft-rank { font-size: 1.3rem; }
+  .ft-name { font-size: 1.05rem; }
+  .ft-c { font-size: 0.8rem; }
+  .ft-c--pts { font-size: 1rem; }
+}
 
 /* ============================================================================
    Player detail page

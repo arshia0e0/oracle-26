@@ -11,7 +11,7 @@
 "use client";
 
 import { useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import type { CSSProperties } from "react";
 
 export type PickDeckCardData = {
@@ -42,11 +42,14 @@ function PickCard({
   card,
   side,
   layer,
+  dealt,
 }: {
   card: PickDeckCardData;
   side: "left" | "right";
   /* position within the pile — 0 deals first and sits at the bottom */
   layer: number;
+  /* true once the deck container has entered the viewport */
+  dealt: boolean;
 }) {
   const cardRef = useRef<HTMLElement>(null);
   const dir = side === "left" ? -1 : 1;
@@ -78,8 +81,7 @@ function PickCard({
     <div className="pcard-slot" style={slotStyle}>
       <motion.div
         initial={{ x: `${dir * 60}vw`, rotateY: dir * 16, opacity: 0 }}
-        whileInView={{ x: "0vw", rotateY: 0, opacity: 1 }}
-        viewport={{ once: true, amount: 0.3 }}
+        animate={dealt ? { x: "0vw", rotateY: 0, opacity: 1 } : undefined}
         transition={{
           type: "spring",
           stiffness: 80,
@@ -136,10 +138,22 @@ export default function ProphetPickDeck({
   /* which page edge the cards fly in from (= the row's empty side) */
   side: "left" | "right";
 }) {
+  // Watch the static deck container, not the cards themselves: the cards
+  // start translated ±60vw offscreen, so an IntersectionObserver on the
+  // card never fires on wide viewports and the pile would stay invisible.
+  const deckRef = useRef<HTMLDivElement>(null);
+  const dealt = useInView(deckRef, { once: true, amount: 0.3 });
+
   return (
-    <div className="pickdeck">
+    <div className="pickdeck" ref={deckRef}>
       {cards.map((card, layer) => (
-        <PickCard key={card.label} card={card} side={side} layer={layer} />
+        <PickCard
+          key={card.label}
+          card={card}
+          side={side}
+          layer={layer}
+          dealt={dealt}
+        />
       ))}
     </div>
   );
