@@ -103,12 +103,14 @@ function PickCard({
             <header className="pcard__top">
               <span className="pcard__no">{card.points}</span>
               <span className="pcard__brand">ORACLE /26</span>
-              <span className="pcard__flag">
-                {card.flagUrl ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
+              {card.flagUrl ? (
+                <span className="pcard__flag">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={card.flagUrl} alt={`${card.name} flag`} />
-                ) : null}
-              </span>
+                </span>
+              ) : (
+                <span />
+              )}
             </header>
             <div className="pcard__photo">
               {card.imageUrl ? (

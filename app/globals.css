@@ -715,6 +715,27 @@ img { display: block; }
     height: auto;
     aspect-ratio: 2 / 3;
   }
+  /* perf: while the scroll-linked deal is live, keep each sliding card on
+     a pre-promoted compositor layer so the x slide never repaints. The
+     wrapper is swapped for a plain div once the spread latches, which
+     drops the hint (and the layer) again. */
+  .pcard-deal {
+    will-change: transform;
+  }
+  /* perf (star deck only — pickdeck is untouched): the holographic
+     shimmer is a cursor-driven hover effect — it never shows on touch —
+     but its mix-blend-mode:screen layer forces expensive blending on
+     every card while they animate. Drop it. */
+  .stardeck .pcard__shine {
+    display: none;
+  }
+  /* perf: keep the halftone print texture but composite it normally —
+     at 6% opacity on the dark face, `screen` and `normal` are visually
+     identical, and dropping the blend mode avoids isolating each card
+     face into its own blending context during the deal */
+  .stardeck .pcard__face::after {
+    mix-blend-mode: normal;
+  }
 }
 /* tighter type and headshot so the card face fits a ~160px column */
 @media (max-width: 480px) {
@@ -936,19 +957,13 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
 .pb-cell__lab { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--chalk-faint); margin-top: 0.5rem; display: block; }
 @media (max-width: 720px) { .prophet-band { grid-template-columns: repeat(2, 1fr); } }
 
-/* sticker | profile | dealt pile of pick cards; even rows mirror the layout */
-/* deck column is auto-sized to fit 4 horizontal cards (~656px) */
-.prophet-row { display: grid; grid-template-columns: 240px 1fr auto; gap: 2.5rem; align-items: center; padding: 2.5rem 0; border-top: 1px solid var(--pitch-line); }
-.prophet-row:nth-child(even) { grid-template-columns: auto 1fr 240px; }
+/* sticker | profile on top row; pick-card deck always on its own full-width
+   row below. 4 × 170px + 3 × 12px = 716px — always on its own row so the
+   bio column keeps breathing room at all viewport sizes. */
+.prophet-row { display: grid; grid-template-columns: 240px 1fr; gap: 2.5rem; align-items: center; padding: 2.5rem 0; border-top: 1px solid var(--pitch-line); }
+.prophet-row:nth-child(even) { grid-template-columns: 1fr 240px; }
 .prophet-row:nth-child(even) .prophet-row__sticker { order: 2; }
-.prophet-row:nth-child(even) .prophet-row__deck { order: -1; }
-/* four cards make the inline deck ~600px wide, so it moves to its own
-   row earlier than the old 1200px cutoff to keep the bio column readable */
-@media (max-width: 1320px) {
-  .prophet-row { grid-template-columns: 240px 1fr; }
-  .prophet-row:nth-child(even) { grid-template-columns: 1fr 240px; }
-  .prophet-row__deck, .prophet-row:nth-child(even) .prophet-row__deck { grid-column: 1 / -1; justify-self: center; order: 3; }
-}
+.prophet-row__deck, .prophet-row:nth-child(even) .prophet-row__deck { grid-column: 1 / -1; justify-self: center; order: 3; }
 @media (max-width: 760px) { .prophet-row, .prophet-row:nth-child(even) { grid-template-columns: 1fr; gap: 1.5rem; } .prophet-row:nth-child(even) .prophet-row__sticker { order: 0; } }
 .prophet-row__sticker { width: 220px; margin: 0 auto; }
 
@@ -969,9 +984,11 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
      the inline rotate() tilt from the component is kept for visual charm */
   position: static !important;
 }
-.pickdeck .pcard { width: 140px; height: 210px; }
-.pickdeck .pcard__photo { width: 84px; height: 84px; }
-.pickdeck .pcard__name { font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pickdeck .pcard { width: 170px; height: 255px; }
+.pickdeck .pcard__photo { width: 100px; height: 100px; }
+.pickdeck .pcard__name { font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pickdeck .pcard__meta { font-size: 0.58rem; margin-top: 0.45rem; }
+.pickdeck .pcard__face { padding: 0.85rem 0.9rem 1rem; }
 .pickdeck__init { width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--grass-ink); color: var(--chalk); font-family: var(--display); font-size: 2rem; border: 1px solid rgba(6,13,9,0.7); }
 /* — Mobile pick-deck: vertical flow instead of absolute stacked pile ---- */
 @media (max-width: 760px) {
@@ -983,12 +1000,12 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
     perspective: none;
   }
   .pickdeck .pcard {
-    width: 160px;
-    height: 240px;
+    width: 180px;
+    height: 270px;
   }
   .pickdeck .pcard__photo {
-    width: 96px;
-    height: 96px;
+    width: 108px;
+    height: 108px;
   }
 }
 .prophet-detail__role { font-family: var(--stencil); font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--grass); }
@@ -1003,7 +1020,13 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
 
 /* — Podium -------------------------------------------------------------- */
 .podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: 1rem; align-items: end; margin: 2rem 0 3.5rem; }
-@media (max-width: 720px) { .podium { grid-template-columns: 1fr; } .podium > * { order: 0 !important; } }
+@media (max-width: 720px) {
+  .podium { grid-template-columns: 1fr; }
+  /* DOM order is [2nd, 1st, 3rd]; reorder to 1st, 2nd, 3rd on mobile */
+  .podium-card--1 { order: 1; }
+  .podium-card--2 { order: 2; }
+  .podium-card--3 { order: 3; }
+}
 .podium-card { border: 1px solid var(--pitch-line); background: var(--ink-2); padding: 1.6rem 1.3rem; text-align: center; position: relative; }
 .podium-card--1 { border-color: var(--grass); box-shadow: 0 0 40px rgba(120,255,170,0.12); }
 .podium-rank { font-family: var(--display); font-size: 3rem; line-height: 0.8; color: var(--chalk-faint); }

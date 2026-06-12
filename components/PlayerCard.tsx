@@ -10,15 +10,24 @@
 // scroll deals the next card in from its side of the page into the fan.
 // The eight cards land in a single hand-of-cards fan (each rotated a few
 // degrees more than the last, tops curving like cards held in a hand).
-// Once every card has landed the spread is latched and no longer
-// scroll-linked, and React swaps to a fully static render.
+// The first two cards dealt (Messi, Ronaldo) take the two CENTER slots;
+// every later card lands one slot further out on the side it flew in
+// from, so the fan reads (left → right): Yamal, De Bruyne, Haaland,
+// Messi, Ronaldo, Vini, Van Dijk, Mbappé.
 //
-// The same scroll-linked pipeline drives both viewports; on narrow
-// screens the raw progress is divided by 0.35 so the full deal lands
-// within the first third of the runway (the flattened 2-column card grid
-// is much taller than the desktop fan, so the same runway would demand
-// far more scrolling), and the mobile CSS flattens the fan into a 2-up
-// grid.
+// Desktop: the deal is fully scroll-reversible — scrolling back up plays
+// it backwards and the cards fly off-page again. The cards stay on live
+// MotionValues for the whole session (cheap on desktop hardware).
+//
+// Mobile (≤880px): the same scroll-linked pipeline, but tuned for weak
+// phone GPUs/CPUs: the raw progress is divided by 0.35 so the full deal
+// lands within the first third of the runway (the flattened 2-column
+// card grid is much taller than the desktop fan), the spring is bypassed
+// (transforms track scroll directly — no settle work after every scroll
+// event), the 3D rotateY/perspective and the opacity fade are dropped
+// (plain 2D x slide; cards start fully off-screen so the fade was
+// invisible anyway), and once the spread lands a one-way latch pins it
+// and React swaps to a fully static render with zero per-frame cost.
 
 "use client";
 
@@ -61,9 +70,16 @@ export type PlayerCardData = {
 /* ---------------------------------------------------------------------------
    Hand-of-cards fan geometry
    ---------------------------------------------------------------------------
-   Each of the N cards rests in a slot keyed off its deal order. Cards
-   fan out across the row, each rotated a few degrees more than the last,
-   their tops curving upward in the middle like cards held in a hand.
+   Each of the N cards rests in a slot. Cards fan out across the row, each
+   rotated a few degrees more than the last, their tops curving upward in
+   the middle like cards held in a hand.
+
+   Deal order → fan slot: the first two cards dealt take the two centre
+   slots; each later LEFT-entering card (even deal order) lands one slot
+   further out to the left, each RIGHT-entering card (odd) one slot
+   further out to the right. With the current eight that reads, left to
+   right: Yamal(6), De Bruyne(4), Haaland(2), Messi(0), Ronaldo(1),
+   Vini(3), Van Dijk(5), Mbappé(7).
 
    .pcard is 200px wide on desktop. Spacing card centres ~118px apart
    gives a ~41% overlap (200-118 = 82px hidden) while every name/face
@@ -76,8 +92,14 @@ const FAN_ROT = 4; // degrees added per card away from centre
 const FAN_ARC = 4.2; // vertical curve strength (px per step²)
 
 function fanSlot(order: number, count: number): CSSProperties {
+  // deal order → fan slot index (0 = far left). Evens walk out from the
+  // centre to the left, odds to the right (see block comment above).
+  const slot =
+    order % 2 === 0
+      ? count / 2 - 1 - order / 2
+      : count / 2 + (order - 1) / 2;
   const mid = (count - 1) / 2;
-  const off = order - mid; // signed distance from the centre slot
+  const off = slot - mid; // signed distance from the centre of the fan
   // horizontal: spread about the centre of the .starstacks box
   const x = off * FAN_STEP_X - CARD_W / 2;
   // vertical arc: middle cards ride higher, edges dip — tops form a curve
@@ -91,8 +113,9 @@ function fanSlot(order: number, count: number): CSSProperties {
     // apply it as its resting tilt and the :hover rule can cleanly swap
     // to an upright, lifted pose
     ["--fan-rot" as string]: `${off * FAN_ROT}deg`,
-    // left→right stacking so each card tucks under the next
-    zIndex: order + 1,
+    // centre-out stacking: the two middle cards sit on top and each card
+    // further out tucks under its neighbour, like a held hand of cards
+    zIndex: count - Math.ceil(Math.abs(off)),
   } as CSSProperties;
 }
 
@@ -127,15 +150,19 @@ export function StarCardDeck({
   const narrowRef = useRef(false);
   narrowRef.current = isNarrow;
 
-  // One-way latch: once the spread is complete it stays put — no
-  // re-dealing or end-of-animation jumps when the user keeps scrolling
-  // or rubber-bands back up. `dealt` (state) flips React over to a fully
-  // static render so the cards stop costing any per-frame work: see below.
+  // One-way latch, MOBILE ONLY: once the spread is complete it stays put
+  // — no re-dealing or end-of-animation jumps when the user keeps
+  // scrolling or rubber-bands back up. `dealt` (state) then flips React
+  // over to a fully static render so the cards stop costing any
+  // per-frame work: see below. On desktop there is no latch: the deal is
+  // fully scroll-reversible, so scrolling back up plays it backwards and
+  // the cards fly off-page again.
   const dealtRef = useRef(false);
   const [dealt, setDealt] = useState(false);
   const dealProgress = useTransform(scrollYProgress, (v) => {
+    if (!narrowRef.current) return v; // desktop: live + reversible
     if (dealtRef.current) return 1;
-    const scaled = narrowRef.current ? v / 0.35 : v;
+    const scaled = v / 0.35;
     if (scaled >= 1) {
       dealtRef.current = true;
       return 1;
@@ -143,29 +170,32 @@ export function StarCardDeck({
     return scaled;
   });
 
-  const progress = useSpring(dealProgress, {
+  // Desktop: a soft spring trails the scroll for the dealt-from-the-edge
+  // feel. Mobile: bypass the spring entirely — the transforms track the
+  // scroll value directly, so the main thread does no spring catch-up
+  // work after every scroll event (springs keep animating to settle long
+  // after the thumb stops, which is most of the jank on weak phones).
+  const sprung = useSpring(dealProgress, {
     stiffness: 170,
     damping: 30,
     mass: 0.6,
   });
+  const progress = isNarrow ? dealProgress : sprung;
 
-  // The latch above pins the spread, but the spring + the 8×3 per-card
+  // Mobile only: the latch above pins the spread, but the 8 per-card
   // transforms stay subscribed to scrollYProgress for the rest of the
   // session — recomputing and mutating inline styles on every scroll
-  // event (and the spring keeps settling after scroll stops, so the page
-  // lags behind the thumb). Once the spring has actually arrived at 1 we
-  // flip `dealt`, after which each card renders a plain static element
-  // with no MotionValues and no 3D transform — zero per-frame cost.
+  // event. Once the progress arrives at 1 we flip `dealt`, after which
+  // each card renders a plain static element with no MotionValues — zero
+  // per-frame cost. Desktop never sets `dealt`: the cards keep their
+  // live MotionValues so scrolling up re-animates them (cheap on PC).
   useEffect(() => {
-    if (dealt) return;
+    if (dealt || !isNarrow) return;
     const unsub = progress.on("change", (v) => {
-      if (v >= 0.999) {
-        progress.set(1);
-        setDealt(true);
-      }
+      if (v >= 0.999) setDealt(true);
     });
     return unsub;
-  }, [progress, dealt]);
+  }, [progress, dealt, isNarrow]);
 
   // each card owns an equal slice of the runway; the last 5% is a rest
   // beat where the finished spread just sits
@@ -187,6 +217,7 @@ export function StarCardDeck({
             progress={progress}
             range={[order * slice, (order + 1) * slice]}
             dealt={dealt}
+            narrow={isNarrow}
           />
         ))}
       </div>
@@ -202,6 +233,7 @@ export default function PlayerCard({
   progress,
   range,
   dealt,
+  narrow,
 }: {
   player: PlayerCardData;
   /* which page edge the card flies in from */
@@ -214,8 +246,11 @@ export default function PlayerCard({
   progress: MotionValue<number>;
   /* the slice of progress during which this card deals in */
   range: [number, number];
-  /* true once the whole spread has landed: render statically from here */
+  /* true once the whole spread has landed: render statically from here
+     (mobile only — desktop stays live so the deal reverses on scroll-up) */
   dealt: boolean;
+  /* narrow viewport (≤880px): cheaper 2D-only animation, see below */
+  narrow: boolean;
 }) {
   const cardRef = useRef<HTMLElement>(null);
   const dir = side === "left" ? -1 : 1;
@@ -228,6 +263,16 @@ export default function PlayerCard({
     [range[0], range[0] + (range[1] - range[0]) * 0.5],
     [0, 1]
   );
+
+  // Mobile: a plain 2D x slide. Dropping rotateY + transformPerspective
+  // avoids promoting eight separate 3D-transformed layers (the biggest
+  // cost on phone GPUs), and the opacity fade is skipped because the
+  // cards start fully off-screen at ±60vw anyway, so the fade never
+  // actually shows — that's three MotionValue→style writes per card per
+  // frame down to one.
+  const dealStyle = narrow
+    ? { x }
+    : { x, rotateY, opacity, transformPerspective: 900 };
 
   // resting pose: each card lands in its fan slot. `order` re-pairs the
   // cards on mobile too, where the fan flattens into a grid, so rows read
@@ -313,13 +358,17 @@ export default function PlayerCard({
   return (
     <div className="pcard-slot" style={slotStyle}>
       {dealt ? (
-        // Latched: a plain div with no MotionValues and no 3D transform.
-        // Nothing here is subscribed to scroll or the spring, and the
-        // card is no longer promoted to its own 3D layer — so once the
-        // deal lands the cards cost essentially zero per-frame work.
+        // Latched (mobile only): a plain div with no MotionValues. Nothing
+        // here is subscribed to scroll, and the card is no longer promoted
+        // to its own compositor layer (the .pcard-deal will-change is gone
+        // too) — so once the deal lands the cards cost essentially zero
+        // per-frame work.
         <div>{inner}</div>
       ) : (
-        <motion.div style={{ x, rotateY, opacity, transformPerspective: 900 }}>
+        // .pcard-deal: mobile CSS sets will-change:transform on this
+        // wrapper while the deal is live, so the slide runs on a
+        // pre-promoted compositor layer instead of repainting
+        <motion.div className="pcard-deal" style={dealStyle}>
           {inner}
         </motion.div>
       )}

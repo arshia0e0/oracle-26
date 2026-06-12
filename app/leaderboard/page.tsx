@@ -2,7 +2,6 @@
 // where every row expands (native <details>, no client JS) into a
 // match-by-match breakdown, and each prophet's tournament picks.
 
-import RulesOfTheGame from "@/components/RulesOfTheGame";
 import { getAIMeta } from "@/lib/ai-meta";
 import { prisma } from "@/lib/db";
 import { buildProphetRows, pct } from "@/lib/prophets";
@@ -179,8 +178,6 @@ export default async function LeaderboardPage() {
           ))}
         </div>
       </div>
-
-      <RulesOfTheGame />
 
       <section style={{ marginTop: "3.5rem" }}>
         <span className="section-label reveal">Tournament predictions</span>

@@ -7,6 +7,7 @@ import path from "path";
 import Link from "next/link";
 import FlagChip from "@/components/FlagChip";
 import HeroCountdown from "@/components/HeroCountdown";
+import RulesOfTheGame from "@/components/RulesOfTheGame";
 import { StarCardDeck } from "@/components/PlayerCard";
 import type { PlayerCardData } from "@/components/PlayerCard";
 import ProphetSticker from "@/components/ProphetSticker";
@@ -234,6 +235,11 @@ export default async function Home() {
           ))}
         </div>
       </section>
+
+      {/* Rules of the Game — concept explanation before the data tables */}
+      <div className="wrap">
+        <RulesOfTheGame />
+      </div>
 
       {/* Form table */}
       <section className="section wrap" id="form">
