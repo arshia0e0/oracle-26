@@ -486,28 +486,28 @@ img { display: block; }
   overflow-anchor: none;
 }
 
-/* two dealt piles, one per page edge; cards land on top of each other */
+/* the fan: a single hand of cards. The slots are absolutely positioned
+   about the centre (left:50% + per-card margins set inline), so this box
+   is a centred positioning context sized to hold the spread. */
 .starstacks {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  gap: 3rem 4rem;
+  position: relative;
+  width: min(100%, 1040px);
+  height: 360px;
+  margin: 0 auto;
   perspective: 1100px;
   padding: 1.5rem 0 0.5rem;
 }
-/* a pile: sized for 4 cards offset 52px right / 8px down per layer */
-.starstack {
-  position: relative;
-  width: calc(200px + 3 * 52px);
-  height: calc(300px + 3 * 8px + 16px);
-}
-/* slot = a card's resting place in the pile (offset/rotation inline) */
+/* slot = a card's resting place in the fan (offset/rotation inline) */
 .pcard-slot {
   position: absolute;
   transition: z-index 0s 0.05s;
 }
-.pcard-slot:hover { z-index: 40; transition-delay: 0s; }
+/* lift and straighten the hovered card so it can be read clearly, and
+   pull it to the front of the fan */
+.pcard-slot:hover {
+  z-index: 40;
+  transition-delay: 0s;
+}
 
 /* card-as-link to the player detail page */
 .pcard-link { display: block; text-decoration: none; color: inherit; }
@@ -528,11 +528,17 @@ img { display: block; }
   border: 1px solid rgba(241,238,226,0.16);
   background: rgba(241,238,226,0.04);
   box-shadow: 0 18px 40px rgba(0,0,0,0.55);
+  /* resting tilt: each card in the fan is rotated a few degrees more than
+     the last (--fan-rot, set per slot inline; 0 when unset) */
+  transform: rotate(var(--fan-rot, 0deg));
+  transform-origin: 50% 120%;
   transition: transform 0.3s cubic-bezier(.2,.8,.2,1), box-shadow 0.3s;
   cursor: default;
 }
+/* hover: straighten the card upright and lift it out of the fan so it
+   can be read clearly */
 .pcard-slot:hover .pcard {
-  transform: translateY(-16px) scale(1.04);
+  transform: translateY(-22px) rotate(0deg) scale(1.05);
   box-shadow: 0 34px 60px rgba(0,0,0,0.65);
 }
 
@@ -679,7 +685,15 @@ img { display: block; }
    scaled fluidly to the column width. !important is needed to beat the
    inline pile offsets (left/top/rotate) set per slot in PlayerCard. */
 @media (max-width: 880px) {
+  /* the fan can't sit side by side on a phone, so flatten it into a
+     simple 2-up grid — every card visible, two beside each other, scaled
+     fluidly to the column width. The slots are absolutely positioned with
+     per-card margins/rotation inline on desktop, so !important is needed
+     to drop them back into normal grid flow. */
   .starstacks {
+    position: static;
+    width: auto;
+    height: auto;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.25rem 1rem;
@@ -687,43 +701,19 @@ img { display: block; }
     /* no 3D deal on mobile — don't force a perspective context */
     perspective: none;
   }
-  .starstack { display: contents; }
   .pcard-slot {
     position: static !important;
-    transform: none !important;
+    margin: 0 !important;
     width: 100%;
     max-width: 220px;
   }
+  /* the resting tilt (--fan-rot) is set per slot inline; cancel it so the
+     grid cards sit upright */
   .pcard {
+    --fan-rot: 0deg;
     width: 100%;
     height: auto;
     aspect-ratio: 2 / 3;
-  }
-
-  /* mobile deal: cards wait off-page (per-slot --deal-dx is ±60vw), then
-     a single IntersectionObserver adds .is-dealt to the deck and pure
-     CSS keyframes stagger them in (per-slot --deal-delay). Only
-     transform + opacity animate, so the whole deal runs on the
-     compositor — no scroll-linked JS, no per-frame main-thread work,
-     and it goes idle by itself when the last card lands. */
-  .stardeck--mobile .pcard-deal {
-    opacity: 0;
-    transform: translateX(var(--deal-dx, 0vw));
-  }
-  .stardeck--mobile.is-dealt .pcard-deal {
-    animation: pcard-deal-in 0.6s cubic-bezier(0.22, 0.85, 0.3, 1) both;
-    animation-delay: var(--deal-delay, 0ms);
-  }
-}
-@keyframes pcard-deal-in {
-  to { opacity: 1; transform: none; }
-}
-/* reduced motion: skip the fly-in, cards are simply there */
-@media (prefers-reduced-motion: reduce) {
-  .stardeck--mobile .pcard-deal {
-    opacity: 1;
-    transform: none;
-    animation: none;
   }
 }
 /* tighter type and headshot so the card face fits a ~160px column */

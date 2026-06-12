@@ -8,6 +8,7 @@ import ProphetPickDeck from "@/components/ProphetPickDeck";
 import ProphetSticker from "@/components/ProphetSticker";
 import { AI_META, getAIMeta } from "@/lib/ai-meta";
 import { prisma } from "@/lib/db";
+import { buildPlayerResolutionMap } from "@/lib/player-name-match";
 import { avg, buildProphetRows, pct } from "@/lib/prophets";
 import { TOURNAMENT_POINTS } from "@/lib/scoring";
 
@@ -46,16 +47,26 @@ const COUNTRY_THEMES: Record<string, { t1: string; t2: string }> = {
   Germany: { t1: "#f4c20d", t2: "#d6293c" },
 };
 
-function normalizeName(name: string): string {
+// Used only for the PLAYER_PHOTO_FILES lookup. Strips accents and
+// punctuation, expands common suffix abbreviations so "Vinícius Jr."
+// hits the same key as "Vinicius Junior".
+const PHOTO_ABBREV: Record<string, string> = { jr: "junior", sr: "senior" };
+
+function photoNormalizeName(name: string): string {
   return name
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
-    .trim();
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((t) => PHOTO_ABBREV[t] ?? t)
+    .join(" ");
 }
 
 function playerPhoto(name: string): string | null {
-  const file = PLAYER_PHOTO_FILES[normalizeName(name)];
+  const file = PLAYER_PHOTO_FILES[photoNormalizeName(name)];
   if (!file) return null;
   return existsSync(path.join(process.cwd(), "public", "players", `${file}.png`))
     ? `/players/${file}.png`
@@ -83,22 +94,25 @@ export default async function ProphetsPage() {
   const flagByTeam = new Map(teams.map((t) => [t.name, t.flagUrl]));
 
   // Resolve each picked player's nation (for the corner flag and the
-  // card tint) from the squad data, keyed by accent-stripped name.
+  // card tint) using fuzzy name matching. AI predictions may spell names
+  // with variant accents or abbreviations (e.g. "Vinícius Jr." vs the DB's
+  // "Vinicius Junior"), so we fetch all players and match with token-level
+  // normalisation rather than a strict Prisma `name: { in: [...] }`.
   const pickedPlayerNames = picks.flatMap((p) =>
     [p.predictedGoldenBoot, p.predictedGoldenGlove, p.predictedGoldenBall].filter(
       (n): n is string => Boolean(n)
     )
   );
-  const pickedPlayers = await prisma.player.findMany({
-    where: { name: { in: pickedPlayerNames } },
-    include: { team: { select: { name: true, flagUrl: true } } },
+  const allPlayers = await prisma.player.findMany({
+    select: { name: true, team: { select: { name: true, flagUrl: true } } },
   });
+  const playerResolutionMap = buildPlayerResolutionMap(pickedPlayerNames, allPlayers);
   const teamByPlayer = new Map(
-    pickedPlayers.map((pl) => [normalizeName(pl.name), pl.team])
+    Array.from(playerResolutionMap.entries()).map(([pickName, pl]) => [pickName, pl.team])
   );
 
   function playerCard(label: string, points: number, name: string) {
-    const team = teamByPlayer.get(normalizeName(name));
+    const team = teamByPlayer.get(name);
     return {
       label,
       points,
