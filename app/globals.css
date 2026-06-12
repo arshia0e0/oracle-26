@@ -1081,3 +1081,97 @@ a.lineup-head { text-decoration: none; }
 
 /* utility */
 .section-label { font-family: var(--stencil); font-size: 0.74rem; letter-spacing: 0.24em; text-transform: uppercase; color: var(--grass); margin-bottom: 1.4rem; display: block; }
+
+/* ============================================================================
+   Rules of the game (leaderboard) — how the oracles earn their points
+   ============================================================================ */
+.rules { margin-top: 3.5rem; }
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+.rules-panel {
+  border: 1px solid var(--pitch-line);
+  background: var(--ink-2);
+  padding: 1.2rem 1.3rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.rules-panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.rules-panel__head span {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--chalk-faint);
+}
+.rules-panel__head b {
+  font-family: var(--stencil);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  color: var(--grass);
+  white-space: nowrap;
+}
+.rules-step { display: flex; gap: 0.8rem; align-items: flex-start; }
+.rules-step__no {
+  font-family: var(--stencil);
+  font-size: 1.05rem;
+  color: var(--grass);
+  border: 1px solid var(--pitch-line);
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rules-step__title {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--chalk);
+  margin-bottom: 0.25rem;
+}
+.rules-step__txt { font-size: 0.82rem; line-height: 1.55; color: var(--chalk-dim); }
+.rules-step__txt b { color: var(--chalk); }
+.rules-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.rules-row:last-of-type { border-bottom: 0; }
+.rules-row__label { font-size: 0.8rem; line-height: 1.4; color: var(--chalk-dim); }
+.rules-row__pts {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--grass);
+  min-width: 2.6ch;
+  text-align: right;
+}
+.rules-note {
+  margin-top: auto;
+  padding-top: 0.6rem;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  color: var(--chalk-faint);
+}
+@media (max-width: 880px) {
+  .rules-grid { grid-template-columns: 1fr; }
+  .rules-note { margin-top: 0; }
+}

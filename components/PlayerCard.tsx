@@ -8,15 +8,31 @@
 // Scroll-driven deal (StarCardDeck): the section stays its natural size
 // and the deal is keyed to its travel up the viewport — each stretch of
 // scroll deals the next card in from its side of the page onto that
-// side's pile, and scrolling back up reverses the deal.
+// side's pile. Once every card has landed the spread is latched and no
+// longer scroll-linked.
 
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useSpring, useTransform } from "framer-motion";
 import type { MotionValue } from "framer-motion";
 import type { CSSProperties } from "react";
+
+/* SSR-safe media query: renders `false` on the server and on the first
+   client paint (matching the server markup, so no hydration mismatch),
+   then flips to the real value in an effect and tracks changes. */
+function useIsNarrow(maxWidth: number) {
+  const [isNarrow, setIsNarrow] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${maxWidth}px)`);
+    const update = () => setIsNarrow(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [maxWidth]);
+  return isNarrow;
+}
 
 export type PlayerCardData = {
   /* display surname, already uppercased/shortened (e.g. "VINI JR") */
@@ -50,9 +66,33 @@ export function StarCardDeck({
     target: deckRef,
     offset: ["start 0.85", "end 0.55"],
   });
-  const progress = useSpring(scrollYProgress, {
-    stiffness: 140,
-    damping: 26,
+
+  // On phones the flattened card grid is much taller than the desktop
+  // piles, so the same runway would demand far more scrolling: compress
+  // it so the full deal lands within the first 40% of the travel. Refs
+  // (not state) feed the transform so the per-scroll callback always
+  // reads the live values without re-subscribing.
+  const isNarrow = useIsNarrow(880);
+  const narrowRef = useRef(false);
+  narrowRef.current = isNarrow;
+
+  // One-way latch: once the spread is complete it stays put — no
+  // re-dealing or end-of-animation jumps when the user keeps scrolling
+  // or rubber-bands back up.
+  const dealtRef = useRef(false);
+  const dealProgress = useTransform(scrollYProgress, (v) => {
+    if (dealtRef.current) return 1;
+    const scaled = narrowRef.current ? v / 0.4 : v;
+    if (scaled >= 1) {
+      dealtRef.current = true;
+      return 1;
+    }
+    return scaled;
+  });
+
+  const progress = useSpring(dealProgress, {
+    stiffness: 170,
+    damping: 30,
     mass: 0.6,
   });
 
