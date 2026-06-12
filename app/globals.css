@@ -939,7 +939,31 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
 .pickdeck .pcard__photo { width: 108px; height: 108px; }
 .pickdeck .pcard__name { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pickdeck__init { width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--grass-ink); color: var(--chalk); font-family: var(--display); font-size: 2rem; border: 1px solid rgba(6,13,9,0.7); }
-@media (max-width: 420px) { .pickdeck { transform: scale(0.86); transform-origin: top left; } }
+/* — Mobile pick-deck: vertical flow instead of absolute stacked pile ---- */
+@media (max-width: 760px) {
+  .pickdeck {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    height: auto;
+    perspective: none;
+  }
+  .pickdeck .pcard-slot {
+    /* override absolute positioning so cards flow top-to-bottom */
+    position: static !important;
+    transform: none !important;
+  }
+  .pickdeck .pcard {
+    width: 160px;
+    height: 240px;
+  }
+  .pickdeck .pcard__photo {
+    width: 96px;
+    height: 96px;
+  }
+}
 .prophet-detail__role { font-family: var(--stencil); font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--grass); }
 .prophet-detail__name { font-family: var(--display); text-transform: uppercase; font-size: clamp(2rem, 5vw, 3.4rem); line-height: 0.88; margin: 0.5rem 0 0.2rem; }
 .prophet-detail__model { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.14em; color: var(--chalk-faint); }

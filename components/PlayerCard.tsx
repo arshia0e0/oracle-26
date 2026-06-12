@@ -79,8 +79,10 @@ export function StarCardDeck({
 
   // One-way latch: once the spread is complete it stays put — no
   // re-dealing or end-of-animation jumps when the user keeps scrolling
-  // or rubber-bands back up.
+  // or rubber-bands back up. `dealt` (state) flips React over to a fully
+  // static render so the cards stop costing any per-frame work: see below.
   const dealtRef = useRef(false);
+  const [dealt, setDealt] = useState(false);
   const dealProgress = useTransform(scrollYProgress, (v) => {
     if (dealtRef.current) return 1;
     const scaled = narrowRef.current ? v / 0.35 : v;
@@ -96,6 +98,24 @@ export function StarCardDeck({
     damping: 30,
     mass: 0.6,
   });
+
+  // The latch above pins the spread, but the spring + the 8×3 per-card
+  // transforms stay subscribed to scrollYProgress for the rest of the
+  // session — recomputing and mutating inline styles on every scroll
+  // event (and the spring keeps settling after scroll stops, so the page
+  // lags behind the thumb). Once the spring has actually arrived at 1 we
+  // flip `dealt`, after which each card renders a plain static element
+  // with no MotionValues and no 3D transform — zero per-frame cost.
+  useEffect(() => {
+    if (dealt) return;
+    const unsub = progress.on("change", (v) => {
+      if (v >= 0.999) {
+        progress.set(1);
+        setDealt(true);
+      }
+    });
+    return unsub;
+  }, [progress, dealt]);
 
   // each card owns an equal slice of the runway; the last 5% is a rest
   // beat where the finished spread just sits
@@ -120,6 +140,7 @@ export function StarCardDeck({
                   layer={layer}
                   progress={progress}
                   range={[order * slice, (order + 1) * slice]}
+                  dealt={dealt}
                 />
               ))}
           </div>
@@ -135,6 +156,7 @@ export default function PlayerCard({
   layer,
   progress,
   range,
+  dealt,
 }: {
   player: PlayerCardData;
   /* which page edge the card flies in from, and which pile it joins */
@@ -145,6 +167,8 @@ export default function PlayerCard({
   progress: MotionValue<number>;
   /* the slice of progress during which this card deals in */
   range: [number, number];
+  /* true once the whole spread has landed: render statically from here */
+  dealt: boolean;
 }) {
   const cardRef = useRef<HTMLElement>(null);
   const dir = side === "left" ? -1 : 1;
@@ -206,7 +230,14 @@ export default function PlayerCard({
         {player.photoUrl ? (
           <div className="pcard__photo">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={player.photoUrl} alt={player.cardName} />
+            <img
+              src={player.photoUrl}
+              alt={player.cardName}
+              width={124}
+              height={124}
+              loading="lazy"
+              decoding="async"
+            />
           </div>
         ) : (
           <div className="pcard__number">{player.shirtNumber}</div>
@@ -222,17 +253,27 @@ export default function PlayerCard({
     </article>
   );
 
+  const inner = player.href ? (
+    <Link href={player.href} className="pcard-link">
+      {card}
+    </Link>
+  ) : (
+    card
+  );
+
   return (
     <div className="pcard-slot" style={slotStyle}>
-      <motion.div style={{ x, rotateY, opacity, transformPerspective: 900 }}>
-        {player.href ? (
-          <Link href={player.href} className="pcard-link">
-            {card}
-          </Link>
-        ) : (
-          card
-        )}
-      </motion.div>
+      {dealt ? (
+        // Latched: a plain div with no MotionValues and no 3D transform.
+        // Nothing here is subscribed to scroll or the spring, and the
+        // card is no longer promoted to its own 3D layer — so once the
+        // deal lands the cards cost essentially zero per-frame work.
+        <div>{inner}</div>
+      ) : (
+        <motion.div style={{ x, rotateY, opacity, transformPerspective: 900 }}>
+          {inner}
+        </motion.div>
+      )}
     </div>
   );
 }
