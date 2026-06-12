@@ -18,6 +18,7 @@ export interface TournamentOutcome {
   winner: string;
   goldenBoot: string;
   goldenGlove: string;
+  goldenBall: string;
   reasoning: string;
 }
 
@@ -67,12 +68,13 @@ export function buildTournamentPrompt(
 1. The team that will win the World Cup
 2. The player who will win the Golden Boot (top scorer)
 3. The goalkeeper who will win the Golden Glove (best goalkeeper)
+4. The player who will win the Golden Ball (best player of the tournament)
 
 Teams in the tournament:
 ${teamLines}
 
 Respond ONLY in this exact JSON format, no other text:
-{"winner": "country name", "goldenBoot": "player full name", "goldenGlove": "goalkeeper full name", "reasoning": "brief 2 sentence explanation"}`;
+{"winner": "country name", "goldenBoot": "player full name", "goldenGlove": "goalkeeper full name", "goldenBall": "player full name", "reasoning": "brief 2 sentence explanation"}`;
 }
 
 // ---------- Response parsing ----------
@@ -112,6 +114,7 @@ function parseTournamentOutcome(text: string): TournamentOutcome {
     typeof parsed.winner !== "string" ||
     typeof parsed.goldenBoot !== "string" ||
     typeof parsed.goldenGlove !== "string" ||
+    typeof parsed.goldenBall !== "string" ||
     typeof parsed.reasoning !== "string"
   ) {
     throw new Error(`Response JSON has wrong shape: ${text.slice(0, 200)}`);
@@ -120,6 +123,7 @@ function parseTournamentOutcome(text: string): TournamentOutcome {
     winner: parsed.winner,
     goldenBoot: parsed.goldenBoot,
     goldenGlove: parsed.goldenGlove,
+    goldenBall: parsed.goldenBall,
     reasoning: parsed.reasoning,
   };
 }

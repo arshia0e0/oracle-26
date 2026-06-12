@@ -78,6 +78,7 @@ model TournamentPrediction {
   predictedWinner      String
   predictedGoldenBoot  String
   predictedGoldenGlove String
+  predictedGoldenBall  String?
   reasoning            String
   createdAt            DateTime @default(now())
 }

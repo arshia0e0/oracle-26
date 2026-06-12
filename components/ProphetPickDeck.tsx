@@ -15,7 +15,7 @@ import { motion, useInView } from "framer-motion";
 import type { CSSProperties } from "react";
 
 export type PickDeckCardData = {
-  /* "Winner" | "Golden Boot" | "Golden Glove" */
+  /* "Winner" | "Golden Boot" | "Golden Glove" | "Golden Ball" */
   label: string;
   /* points at stake for getting this pick right — the corner number */
   points: number;
@@ -54,12 +54,14 @@ function PickCard({
   const cardRef = useRef<HTMLElement>(null);
   const dir = side === "left" ? -1 : 1;
 
-  // dealt-card resting pose, same offsets as the homepage piles
+  // Desktop: cards are laid out in a horizontal flex row — no pile offsets.
+  // A small alternating tilt (odd layers lean one way, even the other) keeps
+  // the playful feel without any overlap. Mobile CSS overrides to no rotation.
+  const tilt = (layer % 2 === 0 ? 1 : -1) * 1.5;
   const slotStyle: CSSProperties = {
-    left: layer * 44,
-    top: layer * 8,
+    // left/top offsets intentionally removed; flex container handles spacing
     zIndex: layer + 1,
-    transform: `rotate(${dir * (layer * 1.4 - 2)}deg)`,
+    transform: `rotate(${tilt}deg)`,
   };
 
   function onMouseMove(e: React.MouseEvent<HTMLElement>) {

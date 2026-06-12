@@ -5,11 +5,22 @@
 // (theme.t1 / theme.t2). When no headshot exists the big shirt number
 // takes over as the focal point.
 //
-// Scroll-driven deal (StarCardDeck): the section stays its natural size
-// and the deal is keyed to its travel up the viewport — each stretch of
-// scroll deals the next card in from its side of the page onto that
-// side's pile. Once every card has landed the spread is latched and no
-// longer scroll-linked.
+// The deal (StarCardDeck) has two implementations chosen by viewport:
+//
+// - Desktop (>880px): scroll-linked. Cards deal in from the page edges
+//   onto the two piles as the section travels up the viewport, driven by
+//   useScroll → spring → per-card transforms. Once every card has landed
+//   the spread latches and React swaps to a fully static render.
+//
+// - Mobile (<=880px): time-based. Driving 8 cards × 3 MotionValues
+//   through a spring on every scroll event — while 3D-rotating large
+//   headshots over blend-mode layers — janks on phone GPUs/main threads.
+//   So on narrow screens the deck renders statically from the start and
+//   a single IntersectionObserver adds an `is-dealt` class when the deck
+//   scrolls into view; pure CSS keyframes (transform + opacity only, no
+//   rotateY/perspective) stagger the cards in from the sides. The
+//   animation runs on the compositor, never re-renders React, and goes
+//   fully idle on its own when it finishes.
 
 "use client";
 
@@ -49,9 +60,38 @@ export type PlayerCardData = {
   href?: string | null;
 };
 
-/* pinned scrollytelling deck: owns the scroll runway and deals the cards
-   onto the left / right piles as the user scrolls */
+/* split a deal-ordered card list into the two piles: evens deal onto the
+   left pile, odds onto the right, alternating like a real card deal */
+function pile(cards: PlayerCardData[], side: "left" | "right") {
+  return cards
+    .map((card, order) => ({ card, order }))
+    .filter(({ order }) => (side === "left" ? order % 2 === 0 : order % 2 === 1));
+}
+
+/* deck entry point: picks the scroll-linked desktop deal or the
+   compositor-driven mobile deal. The first client paint always renders
+   the desktop variant (matching SSR markup — cards hidden off-page by
+   their initial MotionValues), then narrow viewports swap once, long
+   before the user has scrolled down to the deck. */
 export function StarCardDeck({
+  cards,
+  header,
+}: {
+  cards: PlayerCardData[];
+  header?: React.ReactNode;
+}) {
+  const isNarrow = useIsNarrow(880);
+  return isNarrow ? (
+    <MobileStarCardDeck cards={cards} header={header} />
+  ) : (
+    <ScrollStarCardDeck cards={cards} header={header} />
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Desktop: scroll-linked scrollytelling deal
+   ------------------------------------------------------------------------- */
+function ScrollStarCardDeck({
   cards,
   header,
 }: {
@@ -68,15 +108,6 @@ export function StarCardDeck({
     offset: ["start 1", "end 0.55"],
   });
 
-  // On phones the flattened card grid is much taller than the desktop
-  // piles, so the same runway would demand far more scrolling: compress
-  // it so the full deal lands within the first 35% of the travel. Refs
-  // (not state) feed the transform so the per-scroll callback always
-  // reads the live values without re-subscribing.
-  const isNarrow = useIsNarrow(880);
-  const narrowRef = useRef(false);
-  narrowRef.current = isNarrow;
-
   // One-way latch: once the spread is complete it stays put — no
   // re-dealing or end-of-animation jumps when the user keeps scrolling
   // or rubber-bands back up. `dealt` (state) flips React over to a fully
@@ -85,12 +116,11 @@ export function StarCardDeck({
   const [dealt, setDealt] = useState(false);
   const dealProgress = useTransform(scrollYProgress, (v) => {
     if (dealtRef.current) return 1;
-    const scaled = narrowRef.current ? v / 0.35 : v;
-    if (scaled >= 1) {
+    if (v >= 1) {
       dealtRef.current = true;
       return 1;
     }
-    return scaled;
+    return v;
   });
 
   const progress = useSpring(dealProgress, {
@@ -127,22 +157,17 @@ export function StarCardDeck({
       <div className="starstacks">
         {(["left", "right"] as const).map((side) => (
           <div className="starstack" key={side}>
-            {cards
-              .map((card, order) => ({ card, order }))
-              .filter(({ order }) =>
-                side === "left" ? order % 2 === 0 : order % 2 === 1
-              )
-              .map(({ card, order }, layer) => (
-                <PlayerCard
-                  key={card.cardName}
-                  player={card}
-                  side={side}
-                  layer={layer}
-                  progress={progress}
-                  range={[order * slice, (order + 1) * slice]}
-                  dealt={dealt}
-                />
-              ))}
+            {pile(cards, side).map(({ card, order }, layer) => (
+              <PlayerCard
+                key={card.cardName}
+                player={card}
+                side={side}
+                layer={layer}
+                progress={progress}
+                range={[order * slice, (order + 1) * slice]}
+                dealt={dealt}
+              />
+            ))}
           </div>
         ))}
       </div>
@@ -150,6 +175,104 @@ export function StarCardDeck({
   );
 }
 
+/* ---------------------------------------------------------------------------
+   Mobile: one-shot CSS stagger deal
+   ------------------------------------------------------------------------- */
+function MobileStarCardDeck({
+  cards,
+  header,
+}: {
+  cards: PlayerCardData[];
+  header?: React.ReactNode;
+}) {
+  const deckRef = useRef<HTMLDivElement>(null);
+
+  // Add `is-dealt` straight on the DOM node (no setState → no React
+  // re-render mid-scroll) the moment the deck approaches the viewport.
+  // The CSS keyframes take it from there entirely off the main thread.
+  useEffect(() => {
+    const el = deckRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      el.classList.add("is-dealt");
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          el.classList.add("is-dealt");
+          io.disconnect();
+        }
+      },
+      // fire when the deck's top edge is ~8% up from the bottom of the
+      // viewport — the first cards are just becoming visible
+      { rootMargin: "0px 0px -8% 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div className="stardeck stardeck--mobile" ref={deckRef}>
+      {header}
+      <div className="starstacks">
+        {(["left", "right"] as const).map((side) => (
+          <div className="starstack" key={side}>
+            {pile(cards, side).map(({ card, order }, layer) => (
+              <StaticStarCard
+                key={card.cardName}
+                player={card}
+                side={side}
+                layer={layer}
+                order={order}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* a card in the mobile deck: plain static markup; the fly-in is pure CSS
+   keyed off the slot's --deal-dx / --deal-delay custom properties */
+function StaticStarCard({
+  player,
+  side,
+  layer,
+  order,
+}: {
+  player: PlayerCardData;
+  side: "left" | "right";
+  layer: number;
+  order: number;
+}) {
+  const dir = side === "left" ? -1 : 1;
+  const slotStyle: CSSProperties = {
+    left: layer * 52,
+    top: layer * 8,
+    zIndex: layer + 1,
+    transform: `rotate(${dir * (layer * 1.4 - 2)}deg)`,
+    // CSS `order` re-pairs the flattened grid by deal order so rows read
+    // Messi+Ronaldo, Haaland+Vini, … instead of pile by pile
+    order: layer * 2 + (side === "left" ? 0 : 1),
+  };
+  const dealStyle = {
+    "--deal-dx": `${dir * 60}vw`,
+    "--deal-delay": `${order * 90}ms`,
+  } as CSSProperties;
+  return (
+    <div className="pcard-slot" style={slotStyle}>
+      <div className="pcard-deal" style={dealStyle}>
+        <CardBody player={player} />
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Desktop card: scroll-linked deal wrapper around the shared card body
+   ------------------------------------------------------------------------- */
 export default function PlayerCard({
   player,
   side,
@@ -170,7 +293,6 @@ export default function PlayerCard({
   /* true once the whole spread has landed: render statically from here */
   dealt: boolean;
 }) {
-  const cardRef = useRef<HTMLElement>(null);
   const dir = side === "left" ? -1 : 1;
 
   // scroll-linked deal: off-page edge → pile, reversing on scroll-up
@@ -183,10 +305,7 @@ export default function PlayerCard({
   );
 
   // dealt-card resting pose: each layer lands shifted along the pile
-  // with a slight crooked rotation, later cards covering earlier ones.
-  // `order` is inert here (slots are absolute) but on mobile, where the
-  // piles flatten into a grid, it re-pairs the cards by deal order so
-  // rows read Messi+Ronaldo, Haaland+Vini, … instead of pile by pile.
+  // with a slight crooked rotation, later cards covering earlier ones
   const slotStyle: CSSProperties = {
     left: layer * 52,
     top: layer * 8,
@@ -194,6 +313,31 @@ export default function PlayerCard({
     transform: `rotate(${dir * (layer * 1.4 - 2)}deg)`,
     order: layer * 2 + (side === "left" ? 0 : 1),
   };
+
+  return (
+    <div className="pcard-slot" style={slotStyle}>
+      {dealt ? (
+        // Latched: a plain div with no MotionValues and no 3D transform.
+        // Nothing here is subscribed to scroll or the spring, and the
+        // card is no longer promoted to its own 3D layer — so once the
+        // deal lands the cards cost essentially zero per-frame work.
+        <div>
+          <CardBody player={player} />
+        </div>
+      ) : (
+        <motion.div style={{ x, rotateY, opacity, transformPerspective: 900 }}>
+          <CardBody player={player} />
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+   Shared card body (sleeve, face, headshot, shine) — used by both deals
+   ------------------------------------------------------------------------- */
+function CardBody({ player }: { player: PlayerCardData }) {
+  const cardRef = useRef<HTMLElement>(null);
 
   function onMouseMove(e: React.MouseEvent<HTMLElement>) {
     const el = cardRef.current;
@@ -229,14 +373,21 @@ export default function PlayerCard({
         </header>
         {player.photoUrl ? (
           <div className="pcard__photo">
+            {/* eager + low priority: fetch/decode the headshots in the
+                background well before the deal, instead of lazy-loading
+                them so the decode lands mid-animation — but without
+                competing with the above-the-fold hero for bandwidth.
+                (lowercase `fetchpriority`: React 18 passes unknown
+                lowercase attributes straight through to the DOM.) */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={player.photoUrl}
               alt={player.cardName}
               width={124}
               height={124}
-              loading="lazy"
+              loading="eager"
               decoding="async"
+              {...({ fetchpriority: "low" } as object)}
             />
           </div>
         ) : (
@@ -253,27 +404,11 @@ export default function PlayerCard({
     </article>
   );
 
-  const inner = player.href ? (
+  return player.href ? (
     <Link href={player.href} className="pcard-link">
       {card}
     </Link>
   ) : (
     card
-  );
-
-  return (
-    <div className="pcard-slot" style={slotStyle}>
-      {dealt ? (
-        // Latched: a plain div with no MotionValues and no 3D transform.
-        // Nothing here is subscribed to scroll or the spring, and the
-        // card is no longer promoted to its own 3D layer — so once the
-        // deal lands the cards cost essentially zero per-frame work.
-        <div>{inner}</div>
-      ) : (
-        <motion.div style={{ x, rotateY, opacity, transformPerspective: 900 }}>
-          {inner}
-        </motion.div>
-      )}
-    </div>
   );
 }

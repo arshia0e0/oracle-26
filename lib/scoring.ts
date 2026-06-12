@@ -10,6 +10,7 @@
 //   - Correct World Cup winner: 100 pts
 //   - Correct Golden Boot:      150 pts
 //   - Correct Golden Glove:     150 pts
+//   - Correct Golden Ball:      150 pts
 
 import { prisma } from "./db";
 
@@ -17,12 +18,14 @@ export const TOURNAMENT_POINTS = {
   winner: 100,
   goldenBoot: 150,
   goldenGlove: 150,
+  goldenBall: 150,
 } as const;
 
 export interface TournamentScoreBreakdown {
   winner: boolean;
   goldenBoot: boolean;
   goldenGlove: boolean;
+  goldenBall: boolean;
   points: number;
 }
 
@@ -40,19 +43,31 @@ function sameName(a: string, b: string): boolean {
 }
 
 export function scoreTournamentPrediction(
-  actual: { winner: string; goldenBoot: string; goldenGlove: string },
-  predicted: { winner: string; goldenBoot: string; goldenGlove: string }
+  actual: {
+    winner: string;
+    goldenBoot: string;
+    goldenGlove: string;
+    goldenBall: string;
+  },
+  predicted: {
+    winner: string;
+    goldenBoot: string;
+    goldenGlove: string;
+    goldenBall: string;
+  }
 ): TournamentScoreBreakdown {
   const winner = sameName(actual.winner, predicted.winner);
   const goldenBoot = sameName(actual.goldenBoot, predicted.goldenBoot);
   const goldenGlove = sameName(actual.goldenGlove, predicted.goldenGlove);
+  const goldenBall = sameName(actual.goldenBall, predicted.goldenBall);
 
   const points =
     (winner ? TOURNAMENT_POINTS.winner : 0) +
     (goldenBoot ? TOURNAMENT_POINTS.goldenBoot : 0) +
-    (goldenGlove ? TOURNAMENT_POINTS.goldenGlove : 0);
+    (goldenGlove ? TOURNAMENT_POINTS.goldenGlove : 0) +
+    (goldenBall ? TOURNAMENT_POINTS.goldenBall : 0);
 
-  return { winner, goldenBoot, goldenGlove, points };
+  return { winner, goldenBoot, goldenGlove, goldenBall, points };
 }
 
 export interface ScoreBreakdown {

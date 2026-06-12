@@ -84,10 +84,11 @@ export default async function ProphetsPage() {
 
   // Resolve each picked player's nation (for the corner flag and the
   // card tint) from the squad data, keyed by accent-stripped name.
-  const pickedPlayerNames = picks.flatMap((p) => [
-    p.predictedGoldenBoot,
-    p.predictedGoldenGlove,
-  ]);
+  const pickedPlayerNames = picks.flatMap((p) =>
+    [p.predictedGoldenBoot, p.predictedGoldenGlove, p.predictedGoldenBall].filter(
+      (n): n is string => Boolean(n)
+    )
+  );
   const pickedPlayers = await prisma.player.findMany({
     where: { name: { in: pickedPlayerNames } },
     include: { team: { select: { name: true, flagUrl: true } } },
@@ -219,6 +220,11 @@ export default async function ProphetsPage() {
                         "Golden Boot",
                         TOURNAMENT_POINTS.goldenBoot,
                         pick.predictedGoldenBoot
+                      ),
+                      playerCard(
+                        "Golden Ball",
+                        TOURNAMENT_POINTS.goldenBall,
+                        pick.predictedGoldenBall ?? "TBD"
                       ),
                     ]}
                   />

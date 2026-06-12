@@ -120,6 +120,15 @@ export default function RulesOfTheGame() {
               {TOURNAMENT_POINTS.goldenGlove}
             </span>
           </div>
+          <div className="rules-row">
+            <span className="tag exact">ball</span>
+            <span className="rules-row__label">
+              Golden Ball — the best player of the tournament
+            </span>
+            <span className="rules-row__pts">
+              {TOURNAMENT_POINTS.goldenBall}
+            </span>
+          </div>
 
           <p className="rules-note">
             Locked before the opening match · paid once, when it&apos;s all

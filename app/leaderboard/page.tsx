@@ -187,7 +187,8 @@ export default async function LeaderboardPage() {
         {tournamentPicks.length === 0 ? (
           <p className="notice reveal">
             The AIs haven&apos;t locked in their tournament picks yet — winner,
-            Golden Boot, and Golden Glove calls land before kickoff.
+            Golden Boot, Golden Glove, and Golden Ball calls land before
+            kickoff.
           </p>
         ) : (
           <div className="scrollx reveal">
@@ -197,6 +198,7 @@ export default async function LeaderboardPage() {
                 <span>World Cup Winner</span>
                 <span>Golden Boot</span>
                 <span>Golden Glove</span>
+                <span>Golden Ball</span>
               </div>
               {tournamentPicks.map((pick) => {
                 const meta = getAIMeta(pick.aiModel);
@@ -236,6 +238,10 @@ export default async function LeaderboardPage() {
                     <span className="picks-c">
                       <small>Best keeper</small>
                       {pick.predictedGoldenGlove}
+                    </span>
+                    <span className="picks-c">
+                      <small>Best player</small>
+                      {pick.predictedGoldenBall ?? "—"}
                     </span>
                   </div>
                 );

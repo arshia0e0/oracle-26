@@ -145,7 +145,7 @@ img { display: block; }
 
 .scrollx { overflow-x: auto; }
 .scrollx > .standings { min-width: 640px; }
-.scrollx > .picks { min-width: 560px; }
+.scrollx > .picks { min-width: 720px; }
 
 .notice {
   border: 1px solid var(--pitch-line);
@@ -684,6 +684,8 @@ img { display: block; }
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.25rem 1rem;
     justify-items: center;
+    /* no 3D deal on mobile — don't force a perspective context */
+    perspective: none;
   }
   .starstack { display: contents; }
   .pcard-slot {
@@ -696,6 +698,32 @@ img { display: block; }
     width: 100%;
     height: auto;
     aspect-ratio: 2 / 3;
+  }
+
+  /* mobile deal: cards wait off-page (per-slot --deal-dx is ±60vw), then
+     a single IntersectionObserver adds .is-dealt to the deck and pure
+     CSS keyframes stagger them in (per-slot --deal-delay). Only
+     transform + opacity animate, so the whole deal runs on the
+     compositor — no scroll-linked JS, no per-frame main-thread work,
+     and it goes idle by itself when the last card lands. */
+  .stardeck--mobile .pcard-deal {
+    opacity: 0;
+    transform: translateX(var(--deal-dx, 0vw));
+  }
+  .stardeck--mobile.is-dealt .pcard-deal {
+    animation: pcard-deal-in 0.6s cubic-bezier(0.22, 0.85, 0.3, 1) both;
+    animation-delay: var(--deal-delay, 0ms);
+  }
+}
+@keyframes pcard-deal-in {
+  to { opacity: 1; transform: none; }
+}
+/* reduced motion: skip the fly-in, cards are simply there */
+@media (prefers-reduced-motion: reduce) {
+  .stardeck--mobile .pcard-deal {
+    opacity: 1;
+    transform: none;
+    animation: none;
   }
 }
 /* tighter type and headshot so the card face fits a ~160px column */
@@ -919,11 +947,14 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
 @media (max-width: 720px) { .prophet-band { grid-template-columns: repeat(2, 1fr); } }
 
 /* sticker | profile | dealt pile of pick cards; even rows mirror the layout */
-.prophet-row { display: grid; grid-template-columns: 240px 1fr 280px; gap: 2.5rem; align-items: center; padding: 2.5rem 0; border-top: 1px solid var(--pitch-line); }
-.prophet-row:nth-child(even) { grid-template-columns: 280px 1fr 240px; }
+/* deck column is auto-sized to fit 4 horizontal cards (~656px) */
+.prophet-row { display: grid; grid-template-columns: 240px 1fr auto; gap: 2.5rem; align-items: center; padding: 2.5rem 0; border-top: 1px solid var(--pitch-line); }
+.prophet-row:nth-child(even) { grid-template-columns: auto 1fr 240px; }
 .prophet-row:nth-child(even) .prophet-row__sticker { order: 2; }
 .prophet-row:nth-child(even) .prophet-row__deck { order: -1; }
-@media (max-width: 1200px) {
+/* four cards make the inline deck ~600px wide, so it moves to its own
+   row earlier than the old 1200px cutoff to keep the bio column readable */
+@media (max-width: 1320px) {
   .prophet-row { grid-template-columns: 240px 1fr; }
   .prophet-row:nth-child(even) { grid-template-columns: 1fr 240px; }
   .prophet-row__deck, .prophet-row:nth-child(even) .prophet-row__deck { grid-column: 1 / -1; justify-self: center; order: 3; }
@@ -931,29 +962,35 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
 @media (max-width: 760px) { .prophet-row, .prophet-row:nth-child(even) { grid-template-columns: 1fr; gap: 1.5rem; } .prophet-row:nth-child(even) .prophet-row__sticker { order: 0; } }
 .prophet-row__sticker { width: 220px; margin: 0 auto; }
 
-/* tournament-pick pile (component: ProphetPickDeck) — homepage cards at
-   a slightly smaller cut, 3 layers offset 44px right / 8px down */
+/* tournament-pick deck (component: ProphetPickDeck) —
+   Desktop: cards flow left-to-right in a horizontal row, no pile overlap.
+   Mobile (≤760px): cards flow top-to-bottom in a vertical column. */
 .prophet-row__deck { justify-self: center; }
-.pickdeck { position: relative; width: calc(180px + 2 * 44px); height: calc(270px + 2 * 8px + 14px); perspective: 1100px; }
-.pickdeck .pcard { width: 180px; height: 270px; }
-.pickdeck .pcard__photo { width: 108px; height: 108px; }
-.pickdeck .pcard__name { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Desktop horizontal row layout */
+.pickdeck {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  perspective: 1100px;
+}
+.pickdeck .pcard-slot {
+  /* neutralise absolute positioning so cards flow in the flex row;
+     the inline rotate() tilt from the component is kept for visual charm */
+  position: static !important;
+}
+.pickdeck .pcard { width: 140px; height: 210px; }
+.pickdeck .pcard__photo { width: 84px; height: 84px; }
+.pickdeck .pcard__name { font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pickdeck__init { width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--grass-ink); color: var(--chalk); font-family: var(--display); font-size: 2rem; border: 1px solid rgba(6,13,9,0.7); }
 /* — Mobile pick-deck: vertical flow instead of absolute stacked pile ---- */
 @media (max-width: 760px) {
   .pickdeck {
-    display: flex;
     flex-direction: column;
     align-items: center;
     gap: 1rem;
     width: 100%;
-    height: auto;
     perspective: none;
-  }
-  .pickdeck .pcard-slot {
-    /* override absolute positioning so cards flow top-to-bottom */
-    position: static !important;
-    transform: none !important;
   }
   .pickdeck .pcard {
     width: 160px;
@@ -1027,7 +1064,7 @@ details[open] .std-caret { transform: rotate(180deg); }
 
 /* — Tournament picks table --------------------------------------------- */
 .picks { border: 1px solid var(--pitch-line); background: var(--ink-2); margin-top: 1.5rem; }
-.picks-cols { display: grid; grid-template-columns: minmax(8rem,1.2fr) 1fr 1fr 1fr; align-items: center; gap: 0.6rem; padding: 0.9rem 1.3rem; border-bottom: 1px solid var(--pitch-line); }
+.picks-cols { display: grid; grid-template-columns: minmax(8rem,1.2fr) 1fr 1fr 1fr 1fr; align-items: center; gap: 0.6rem; padding: 0.9rem 1.3rem; border-bottom: 1px solid var(--pitch-line); }
 .picks-cols:last-child { border-bottom: 0; }
 .picks-head span { font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--chalk-faint); }
 .picks-head { background: rgba(255,255,255,0.02); }
