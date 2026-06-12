@@ -5,19 +5,26 @@ import { PrismaLibSql } from "@prisma/adapter-libsql";
 // Reuse a single PrismaClient across hot reloads in development.
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
+// Strips BOM and whitespace that can sneak in when env values are pasted
+// or piped into hosting dashboards/CLIs.
+function cleanEnv(value: string | undefined): string | undefined {
+  const cleaned = value?.replace(/^\uFEFF/, "").trim();
+  return cleaned || undefined;
+}
+
 // Turso (libsql) in production, local SQLite file in development.
 // Setting TURSO_DATABASE_URL is what flips the switch, so a local
 // `npm run dev` without it keeps using dev.db.
 function createAdapter() {
-  const tursoUrl = process.env.TURSO_DATABASE_URL;
+  const tursoUrl = cleanEnv(process.env.TURSO_DATABASE_URL);
   if (tursoUrl) {
     return new PrismaLibSql({
       url: tursoUrl,
-      authToken: process.env.TURSO_AUTH_TOKEN,
+      authToken: cleanEnv(process.env.TURSO_AUTH_TOKEN),
     });
   }
   return new PrismaBetterSqlite3({
-    url: process.env.DATABASE_URL ?? "file:./dev.db",
+    url: cleanEnv(process.env.DATABASE_URL) ?? "file:./dev.db",
   });
 }
 
