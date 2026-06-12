@@ -44,5 +44,4 @@ prisma/*.db-journal
 *.db-journal
 dev.db
 
-# large image assets
-/public/players/
+.vercel
