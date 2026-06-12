@@ -59,17 +59,18 @@ export function StarCardDeck({
   header?: React.ReactNode;
 }) {
   const deckRef = useRef<HTMLDivElement>(null);
-  // progress runs from the deck entering near the bottom of the viewport
-  // to its bottom edge reaching just past the middle — the spread is
-  // complete while the whole section is still comfortably on screen
+  // progress runs from the moment the deck enters the viewport (so the
+  // first card starts moving right away) to its bottom edge reaching
+  // just past the middle — the spread is complete while the whole
+  // section is still comfortably on screen
   const { scrollYProgress } = useScroll({
     target: deckRef,
-    offset: ["start 0.85", "end 0.55"],
+    offset: ["start 1", "end 0.55"],
   });
 
   // On phones the flattened card grid is much taller than the desktop
   // piles, so the same runway would demand far more scrolling: compress
-  // it so the full deal lands within the first 40% of the travel. Refs
+  // it so the full deal lands within the first 35% of the travel. Refs
   // (not state) feed the transform so the per-scroll callback always
   // reads the live values without re-subscribing.
   const isNarrow = useIsNarrow(880);
@@ -82,7 +83,7 @@ export function StarCardDeck({
   const dealtRef = useRef(false);
   const dealProgress = useTransform(scrollYProgress, (v) => {
     if (dealtRef.current) return 1;
-    const scaled = narrowRef.current ? v / 0.4 : v;
+    const scaled = narrowRef.current ? v / 0.35 : v;
     if (scaled >= 1) {
       dealtRef.current = true;
       return 1;

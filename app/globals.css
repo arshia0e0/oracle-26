@@ -480,6 +480,10 @@ img { display: block; }
   display: flex;
   flex-direction: column;
   gap: 2.2rem;
+  /* cards fading in from opacity 0 change the browser's scroll-anchor
+     candidates and nudge the page back up when the deal lands — opt the
+     whole deck out of scroll anchoring */
+  overflow-anchor: none;
 }
 
 /* two dealt piles, one per page edge; cards land on top of each other */
