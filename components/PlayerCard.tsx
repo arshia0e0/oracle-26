@@ -118,12 +118,16 @@ export default function PlayerCard({
   );
 
   // dealt-card resting pose: each layer lands shifted along the pile
-  // with a slight crooked rotation, later cards covering earlier ones
+  // with a slight crooked rotation, later cards covering earlier ones.
+  // `order` is inert here (slots are absolute) but on mobile, where the
+  // piles flatten into a grid, it re-pairs the cards by deal order so
+  // rows read Messi+Ronaldo, Haaland+Vini, … instead of pile by pile.
   const slotStyle: CSSProperties = {
     left: layer * 52,
     top: layer * 8,
     zIndex: layer + 1,
     transform: `rotate(${dir * (layer * 1.4 - 2)}deg)`,
+    order: layer * 2 + (side === "left" ? 0 : 1),
   };
 
   function onMouseMove(e: React.MouseEvent<HTMLElement>) {
