@@ -20,25 +20,25 @@
     "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@prisma/adapter-libsql": "^7.8.0",
     "@prisma/client": "^7.8.0",
-    "better-sqlite3": "^12.10.0",
-    "framer-motion": "^12.40.0",
-    "next": "14.2.35",
-    "openai": "^6.42.0",
-    "react": "^18",
-    "react-dom": "^18"
-  },
-  "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "better-sqlite3": "^12.10.0",
     "dotenv": "^17.4.2",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
+    "framer-motion": "^12.40.0",
+    "next": "14.2.35",
+    "openai": "^6.42.0",
     "postcss": "^8",
     "prisma": "^7.8.0",
+    "react": "^18",
+    "react-dom": "^18",
     "tailwindcss": "^3.4.1",
-    "tsx": "^4.22.4",
     "typescript": "^5"
+  },
+  "devDependencies": {
+    "tsx": "^4.22.4"
   }
 }
