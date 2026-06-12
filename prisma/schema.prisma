@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Team {
+  id          Int     @id @default(autoincrement())
+  name        String
+  code        String // 3-letter FIFA code, e.g. "BRA"
+  group       String
+  flagUrl     String
+  fifaRanking Int?
+
+  players     Player[]
+  homeMatches Match[]  @relation("HomeTeam")
+  awayMatches Match[]  @relation("AwayTeam")
+}
+
+model Player {
+  id          Int     @id @default(autoincrement())
+  name        String
+  teamId      Int
+  position    String
+  shirtNumber Int
+  photoUrl    String?
+
+  team Team @relation(fields: [teamId], references: [id])
+}
+
+model Match {
+  id         Int      @id // football-data.org match ID
+  homeTeamId Int
+  awayTeamId Int
+  matchday   Int
+  date       DateTime
+  stage      String // GROUP | ROUND_OF_32 | ROUND_OF_16 | QUARTER | SEMI | FINAL
+  venue      String
+  status     String // SCHEDULED | LIVE | FINISHED
+  homeScore  Int?
+  awayScore  Int?
+  group      String?
+
+  homeTeam           Team               @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam           Team               @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  predictions        Prediction[]
+  leaderboardEntries LeaderboardEntry[]
+}
+
+model Prediction {
+  id                 Int      @id @default(autoincrement())
+  aiModel            String
+  matchId            Int
+  predictedHomeScore Int
+  predictedAwayScore Int
+  reasoning          String
+  createdAt          DateTime @default(now())
+
+  match Match @relation(fields: [matchId], references: [id])
+
+  @@unique([aiModel, matchId])
+}
+
+model TournamentPrediction {
+  id                   Int      @id @default(autoincrement())
+  aiModel              String   @unique
+  predictedWinner      String
+  predictedGoldenBoot  String
+  predictedGoldenGlove String
+  reasoning            String
+  createdAt            DateTime @default(now())
+}
+
+model LeaderboardEntry {
+  id           Int      @id @default(autoincrement())
+  aiModel      String
+  matchId      Int
+  pointsEarned Int
+  breakdown    String // JSON string with scoring details
+  createdAt    DateTime @default(now())
+
+  match Match @relation(fields: [matchId], references: [id])
+
+  @@unique([aiModel, matchId])
+}

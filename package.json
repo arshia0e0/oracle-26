@@ -1,0 +1,37 @@
+{
+  "name": "worldcup-ai-predictor",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "sync-data": "tsx scripts/sync-data.ts",
+    "predict-match": "tsx scripts/predict-match.ts",
+    "predict-tournament": "tsx scripts/predict-tournament.ts",
+    "score-match": "tsx scripts/score-match.ts",
+    "daily-update": "tsx scripts/daily-update.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "framer-motion": "^12.40.0",
+    "next": "14.2.35",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "dotenv": "^17.4.2",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "prisma": "^7.8.0",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.22.4",
+    "typescript": "^5"
+  }
+}
