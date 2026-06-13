@@ -508,6 +508,21 @@ img { display: block; }
   z-index: 40;
   transition-delay: 0s;
 }
+/* star fan only: each slot carries an inline z-index for the centre-out
+   stacking, and inline styles beat any stylesheet z-index — so the hover
+   bump above never lands and the lifted card stays tucked under its
+   neighbours. !important is the one way a stylesheet rule outranks an
+   inline style: pop the hovered SLOT (the .pcard's transform creates its
+   own stacking context, so a z-index on the card itself can never escape
+   the slot) to the very top of the fan. The base rule's transition delay
+   keeps the slot on top while the card animates back after un-hover. */
+.starstacks .pcard-slot {
+  transition: z-index 0s 0.25s;
+}
+.starstacks .pcard-slot:hover {
+  z-index: 60 !important;
+  transition-delay: 0s;
+}
 
 /* card-as-link to the player detail page */
 .pcard-link { display: block; text-decoration: none; color: inherit; }
@@ -958,7 +973,7 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
 @media (max-width: 720px) { .prophet-band { grid-template-columns: repeat(2, 1fr); } }
 
 /* sticker | profile on top row; pick-card deck always on its own full-width
-   row below. 4 × 170px + 3 × 12px = 716px — always on its own row so the
+   row below. 4 × 196px + 3 × 12px = 820px — always on its own row so the
    bio column keeps breathing room at all viewport sizes. */
 .prophet-row { display: grid; grid-template-columns: 240px 1fr; gap: 2.5rem; align-items: center; padding: 2.5rem 0; border-top: 1px solid var(--pitch-line); }
 .prophet-row:nth-child(even) { grid-template-columns: 1fr 240px; }
@@ -969,12 +984,16 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
 
 /* tournament-pick deck (component: ProphetPickDeck) —
    Desktop: cards flow left-to-right in a horizontal row, no pile overlap.
-   Mobile (≤760px): cards flow top-to-bottom in a vertical column. */
+   Mobile (≤760px): cards flow top-to-bottom in a vertical column.
+   4 × 196px + 3 × 12px = 820px — comfortably inside .wrap (min(1180px,92vw)).
+   flex-wrap:wrap lets the deck reflow to 2×2 if the viewport is narrow. */
 .prophet-row__deck { justify-self: center; }
 /* Desktop horizontal row layout */
 .pickdeck {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: flex-start;
   gap: 12px;
   perspective: 1100px;
@@ -984,11 +1003,30 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
      the inline rotate() tilt from the component is kept for visual charm */
   position: static !important;
 }
-.pickdeck .pcard { width: 170px; height: 255px; }
-.pickdeck .pcard__photo { width: 100px; height: 100px; }
-.pickdeck .pcard__name { font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pickdeck .pcard__meta { font-size: 0.58rem; margin-top: 0.45rem; }
-.pickdeck .pcard__face { padding: 0.85rem 0.9rem 1rem; }
+/* wider cards (196×294, 2:3 ratio) so "GOLDEN GLOVE · 150 PTS" fits on one
+   line. aspect-ratio:unset cancels the homepage ≤880px rule that would
+   otherwise override the explicit height with auto. */
+.pickdeck .pcard {
+  width: 196px;
+  height: 294px;
+  aspect-ratio: unset;
+}
+.pickdeck .pcard__photo { width: 108px; height: 108px; }
+.pickdeck .pcard__name {
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* tighter letter-spacing + nowrap so the meta line never wraps */
+.pickdeck .pcard__meta {
+  font-size: 0.56rem;
+  letter-spacing: 0.10em;
+  white-space: nowrap;
+  margin-top: 0.45rem;
+}
+/* slightly tighter face padding to maximise inner text width */
+.pickdeck .pcard__face { padding: 0.75rem 0.75rem 0.9rem; }
 .pickdeck__init { width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--grass-ink); color: var(--chalk); font-family: var(--display); font-size: 2rem; border: 1px solid rgba(6,13,9,0.7); }
 /* — Mobile pick-deck: vertical flow instead of absolute stacked pile ---- */
 @media (max-width: 760px) {
@@ -999,13 +1037,31 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
     width: 100%;
     perspective: none;
   }
+  /* The homepage ≤880px rule sets .pcard-slot to position:static/width:100%/
+     max-width:220px for the starstacks grid — those rules are unscoped and
+     bleed into .pickdeck slots. Override them back to auto so pickdeck cards
+     keep their fixed dimensions and don't stretch or overlap. */
+  .pickdeck .pcard-slot {
+    width: auto !important;
+    max-width: none !important;
+  }
+  /* Keep the same 196×294 card size on mobile (explicit beats aspect-ratio).
+     The homepage ≤880px rule sets width:100%/height:auto/aspect-ratio:2/3 on
+     .pcard — we must override all three here so the card stays card-shaped
+     and text doesn't collapse or overlap. */
   .pickdeck .pcard {
-    width: 180px;
-    height: 270px;
+    width: 196px !important;
+    height: 294px !important;
+    aspect-ratio: unset !important;
   }
   .pickdeck .pcard__photo {
-    width: 108px;
-    height: 108px;
+    width: 108px !important;
+    height: 108px !important;
+  }
+  /* The homepage ≤480px rule shrinks .pcard__name to 1.05rem (unscoped, hits
+     these shared classnames). Lock pickdeck name size to 1rem. */
+  .pickdeck .pcard__name {
+    font-size: 1rem !important;
   }
 }
 .prophet-detail__role { font-family: var(--stencil); font-size: 0.72rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--grass); }

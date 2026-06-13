@@ -266,12 +266,18 @@ export default function PlayerCard({
 
   // Mobile: a plain 2D x slide. Dropping rotateY + transformPerspective
   // avoids promoting eight separate 3D-transformed layers (the biggest
-  // cost on phone GPUs), and the opacity fade is skipped because the
+  // cost on phone GPUs), and the opacity FADE is skipped because the
   // cards start fully off-screen at ±60vw anyway, so the fade never
   // actually shows — that's three MotionValue→style writes per card per
-  // frame down to one.
+  // frame down to one. opacity is still pinned to a constant 1 (a single
+  // static write, no per-frame work): the very first client render runs
+  // with narrow=false (the SSR-safe media query), so framer has already
+  // written the desktop fade's `opacity: 0` inline — and when a key
+  // simply disappears from a motion style object framer does not clear
+  // the stale inline value, which left every card invisible until the
+  // dealt latch swapped in the static div. The constant overwrites it.
   const dealStyle = narrow
-    ? { x }
+    ? { x, opacity: 1 }
     : { x, rotateY, opacity, transformPerspective: 900 };
 
   // resting pose: each card lands in its fan slot. `order` re-pairs the
@@ -367,8 +373,17 @@ export default function PlayerCard({
       ) : (
         // .pcard-deal: mobile CSS sets will-change:transform on this
         // wrapper while the deal is live, so the slide runs on a
-        // pre-promoted compositor layer instead of repainting
-        <motion.div className="pcard-deal" style={dealStyle}>
+        // pre-promoted compositor layer instead of repainting.
+        // Keyed by viewport mode: when `narrow` flips after the first
+        // client render (the SSR-safe media query always starts false),
+        // the motion.div remounts instead of diffing its style object —
+        // a clean slate with no stale inline opacity/rotateY/perspective
+        // left over from the other mode's MotionValue set.
+        <motion.div
+          key={narrow ? "flat" : "fan"}
+          className="pcard-deal"
+          style={dealStyle}
+        >
           {inner}
         </motion.div>
       )}
