@@ -191,8 +191,13 @@ function openAICompatibleCompletion(
   };
 }
 
+// Reasoning models (DeepSeek R1, Nemotron) can be slow on free gateways,
+// so cap each request rather than letting the SDK's 10-minute default hang
+// the whole run. withRetry already does its own retry pass on top of this.
+const CLIENT_OPTS = { timeout: 120_000, maxRetries: 1 } as const;
+
 function gptCompletion(prompt: string): () => Promise<string> {
-  const client = new OpenAI({ apiKey: getKey("OPENAI_API_KEY") });
+  const client = new OpenAI({ apiKey: getKey("OPENAI_API_KEY"), ...CLIENT_OPTS });
   return openAICompatibleCompletion(client, "gpt-5-mini", prompt);
 }
 
@@ -203,6 +208,7 @@ function deepSeekCompletion(prompt: string): () => Promise<string> {
   const client = new OpenAI({
     apiKey: getKey("DEEPSEEK_API_KEY"),
     baseURL: "https://openrouter.ai/api/v1",
+    ...CLIENT_OPTS,
   });
   return openAICompatibleCompletion(client, "deepseek/deepseek-r1", prompt);
 }
@@ -211,6 +217,7 @@ function llamaCompletion(prompt: string): () => Promise<string> {
   const client = new OpenAI({
     apiKey: getKey("GROQ_API_KEY"),
     baseURL: "https://api.groq.com/openai/v1",
+    ...CLIENT_OPTS,
   });
   return openAICompatibleCompletion(
     client,
@@ -224,6 +231,7 @@ function nemotronCompletion(prompt: string): () => Promise<string> {
   const client = new OpenAI({
     apiKey: getKey("NEMOTRON_ULTRA_API_KEY"),
     baseURL: "https://openrouter.ai/api/v1",
+    ...CLIENT_OPTS,
   });
   return openAICompatibleCompletion(
     client,
@@ -238,6 +246,7 @@ function qwenCompletion(prompt: string): () => Promise<string> {
   const client = new OpenAI({
     apiKey: getKey("GROQ_API_KEY"),
     baseURL: "https://api.groq.com/openai/v1",
+    ...CLIENT_OPTS,
   });
   return openAICompatibleCompletion(client, "qwen/qwen3-32b", prompt);
 }

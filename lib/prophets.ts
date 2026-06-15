@@ -35,13 +35,16 @@ export function avg(points: number, total: number): string {
 }
 
 export async function buildProphetRows(): Promise<ProphetRow[]> {
-  const [entries, predictions] = await Promise.all([
-    prisma.leaderboardEntry.findMany({
+  // Read inside a transaction so Turso serves it from the primary rather
+  // than a possibly-stale edge replica (autocommit full-table reads can lag).
+  const { entries, predictions } = await prisma.$transaction(async (tx) => {
+    const entries = await tx.leaderboardEntry.findMany({
       include: { match: { include: { homeTeam: true, awayTeam: true } } },
       orderBy: { match: { date: "asc" } },
-    }),
-    prisma.prediction.findMany(),
-  ]);
+    });
+    const predictions = await tx.prediction.findMany();
+    return { entries, predictions };
+  });
 
   const predictionByKey = new Map(
     predictions.map((p) => [

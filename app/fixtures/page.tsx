@@ -100,15 +100,20 @@ export default async function FixturesPage({
 }) {
   const filter = searchParams.filter ?? "all";
 
-  const matches = await prisma.match.findMany({
-    include: {
-      homeTeam: true,
-      awayTeam: true,
-      predictions: { orderBy: { aiModel: "asc" } },
-      leaderboardEntries: true,
-    },
-    orderBy: { date: "asc" },
-  });
+  // Turso serves autocommit full-table reads from an edge replica that can
+  // lag behind freshly-synced writes; an interactive transaction pins the
+  // read to the primary so the standings stay current.
+  const matches = await prisma.$transaction((tx) =>
+    tx.match.findMany({
+      include: {
+        homeTeam: true,
+        awayTeam: true,
+        predictions: { orderBy: { aiModel: "asc" } },
+        leaderboardEntries: true,
+      },
+      orderBy: { date: "asc" },
+    })
+  );
 
   const tabs = buildTabs(matches);
   const filtered = applyFilter(matches, filter);
