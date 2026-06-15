@@ -35,15 +35,18 @@ export function avg(points: number, total: number): string {
 }
 
 export async function buildProphetRows(): Promise<ProphetRow[]> {
-  // Read inside a transaction so Turso serves it from the primary rather
-  // than a possibly-stale edge replica (autocommit full-table reads can lag).
-  const { entries, predictions } = await prisma.$transaction(async (tx) => {
-    const entries = await tx.leaderboardEntry.findMany({
-      include: { match: { include: { homeTeam: true, awayTeam: true } } },
-      orderBy: { match: { date: "asc" } },
-    });
-    const predictions = await tx.prediction.findMany();
-    return { entries, predictions };
+  // Turso serves *unfiltered* autocommit full-table reads from an edge replica
+  // that can lag behind freshly-synced writes. Interactive $transaction()
+  // callbacks throw under Vercel's serverless runtime with the HTTP libSQL
+  // adapter, so instead we carry a harmless always-true `where` clause: a
+  // filtered read routes to the primary and stays current without a tx.
+  const entries = await prisma.leaderboardEntry.findMany({
+    where: { id: { gte: 0 } },
+    include: { match: { include: { homeTeam: true, awayTeam: true } } },
+    orderBy: { match: { date: "asc" } },
+  });
+  const predictions = await prisma.prediction.findMany({
+    where: { id: { gte: 0 } },
   });
 
   const predictionByKey = new Map(

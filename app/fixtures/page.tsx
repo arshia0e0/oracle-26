@@ -100,20 +100,21 @@ export default async function FixturesPage({
 }) {
   const filter = searchParams.filter ?? "all";
 
-  // Turso serves autocommit full-table reads from an edge replica that can
-  // lag behind freshly-synced writes; an interactive transaction pins the
-  // read to the primary so the standings stay current.
-  const matches = await prisma.$transaction((tx) =>
-    tx.match.findMany({
-      include: {
-        homeTeam: true,
-        awayTeam: true,
-        predictions: { orderBy: { aiModel: "asc" } },
-        leaderboardEntries: true,
-      },
-      orderBy: { date: "asc" },
-    })
-  );
+  // Turso serves *unfiltered* autocommit full-table reads from an edge replica
+  // that can lag behind freshly-synced writes. Interactive $transaction()
+  // callbacks throw under Vercel's serverless runtime with the HTTP libSQL
+  // adapter, so instead we carry a harmless always-true `where` clause: a
+  // filtered read routes to the primary and stays current without a tx.
+  const matches = await prisma.match.findMany({
+    where: { id: { gte: 0 } },
+    include: {
+      homeTeam: true,
+      awayTeam: true,
+      predictions: { orderBy: { aiModel: "asc" } },
+      leaderboardEntries: true,
+    },
+    orderBy: { date: "asc" },
+  });
 
   const tabs = buildTabs(matches);
   const filtered = applyFilter(matches, filter);
