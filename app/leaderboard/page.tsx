@@ -108,7 +108,12 @@ function StandingsRow({ row, i }: { row: ProphetRow; i: number }) {
 export default async function LeaderboardPage() {
   const [rows, tournamentPicks, finishedFinal] = await Promise.all([
     buildProphetRows(),
-    prisma.tournamentPrediction.findMany({ orderBy: { aiModel: "asc" } }),
+    // A trivially-true `where` keeps this read consistent with the primary on
+    // Turso; a bare findMany can come back empty from a lagging edge replica.
+    prisma.tournamentPrediction.findMany({
+      where: { id: { gte: 0 } },
+      orderBy: { aiModel: "asc" },
+    }),
     prisma.match.findFirst({
       where: { stage: "FINAL", status: "FINISHED" },
       include: { homeTeam: true, awayTeam: true },

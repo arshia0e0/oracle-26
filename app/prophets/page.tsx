@@ -82,11 +82,16 @@ export const metadata = {
 export default async function ProphetsPage() {
   const [rows, picks, matchesCalled, teams] = await Promise.all([
     buildProphetRows(),
-    prisma.tournamentPrediction.findMany(),
+    // A trivially-true `where` keeps these reads consistent with the primary
+    // on Turso; a bare findMany can come back empty from a lagging edge replica.
+    prisma.tournamentPrediction.findMany({ where: { id: { gte: 0 } } }),
     prisma.prediction
       .groupBy({ by: ["matchId"] })
       .then((groups) => groups.length),
-    prisma.team.findMany({ select: { name: true, flagUrl: true } }),
+    prisma.team.findMany({
+      where: { id: { gte: 0 } },
+      select: { name: true, flagUrl: true },
+    }),
   ]);
 
   const rowByName = new Map(rows.map((r) => [r.aiModel, r]));
@@ -104,6 +109,7 @@ export default async function ProphetsPage() {
     )
   );
   const allPlayers = await prisma.player.findMany({
+    where: { id: { gte: 0 } },
     select: { name: true, team: { select: { name: true, flagUrl: true } } },
   });
   const playerResolutionMap = buildPlayerResolutionMap(pickedPlayerNames, allPlayers);
