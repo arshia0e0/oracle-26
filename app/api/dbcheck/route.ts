@@ -3,6 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { buildProphetRows } from "@/lib/prophets";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,8 @@ export async function GET() {
   const dbUrl = process.env.DATABASE_URL ?? null;
   let entryCount = -1;
   let distinctMatches = -1;
+  let prophetTop = "n/a";
+  let prophetEntrySum = -1;
   let error: string | null = null;
   try {
     entryCount = await prisma.leaderboardEntry.count();
@@ -19,6 +22,17 @@ export async function GET() {
       select: { matchId: true },
     });
     distinctMatches = new Set(rows.map((r) => r.matchId)).size;
+
+    // Run the actual leaderboard aggregation to compare.
+    const prophetRows = await buildProphetRows();
+    const top = prophetRows[0];
+    prophetTop = top
+      ? `${top.aiModel}:${top.totalPoints}pts:${top.matchesPredicted}matches`
+      : "none";
+    prophetEntrySum = prophetRows.reduce(
+      (s, r) => s + r.matchesPredicted,
+      0
+    );
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }
@@ -30,6 +44,8 @@ export async function GET() {
     databaseUrlLen: dbUrl?.length ?? 0,
     entryCount,
     distinctMatches,
+    prophetTop,
+    prophetEntrySum,
     error,
   });
 }
