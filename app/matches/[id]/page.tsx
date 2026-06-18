@@ -97,7 +97,7 @@ export default async function MatchPage({ params }: Props) {
       </header>
 
       <div style={{ maxWidth: 560, margin: "0.5rem 0 3rem" }}>
-        <MatchCard match={match} />
+        <MatchCard match={match} showReasoning />
       </div>
 
       <section>

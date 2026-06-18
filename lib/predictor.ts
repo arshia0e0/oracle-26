@@ -7,11 +7,15 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import type { Match, Player, Team } from "./generated/prisma/client";
+import { normalizeName } from "./scoring";
 
 export interface MatchPrediction {
   homeScore: number;
   awayScore: number;
   reasoning: string;
+  // Model's self-reported confidence in this scoreline, 0–100. Null when a
+  // model didn't return one (e.g. predictions made before this field existed).
+  confidence: number | null;
 }
 
 export interface TournamentOutcome {
@@ -45,7 +49,7 @@ Key players: ${formatPlayers(awayPlayers)}
 Stage: ${match.stage}, Venue: ${match.venue}, Date: ${match.date.toISOString()}
 
 Respond ONLY in this exact JSON format, no other text:
-{"homeScore": number, "awayScore": number, "reasoning": "one sentence"}`;
+{"homeScore": number, "awayScore": number, "confidence": number (0-100, how sure you are of this exact scoreline), "reasoning": "one sentence"}`;
 }
 
 // `includePlayers: false` produces a compact prompt (team names and
@@ -92,6 +96,13 @@ function extractJson(text: string): Record<string, unknown> {
   return JSON.parse(jsonMatch[0]) as Record<string, unknown>;
 }
 
+// Clamps a self-reported confidence to a whole 0–100, or null if the model
+// omitted it or returned something unparseable.
+function parseConfidence(value: unknown): number | null {
+  if (typeof value !== "number" || Number.isNaN(value)) return null;
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
 function parsePrediction(text: string): MatchPrediction {
   const parsed = extractJson(text);
   if (
@@ -105,6 +116,7 @@ function parsePrediction(text: string): MatchPrediction {
     homeScore: Math.round(parsed.homeScore),
     awayScore: Math.round(parsed.awayScore),
     reasoning: parsed.reasoning,
+    confidence: parseConfidence(parsed.confidence),
   };
 }
 
@@ -325,6 +337,80 @@ export async function predictTournamentWithNemotron(
   prompt: string
 ): Promise<TournamentOutcome | null> {
   return withRetry("nemotron", parseTournamentOutcome, nemotronCompletion(prompt));
+}
+
+// ---------- Ensemble (consensus) ----------
+
+// Re-exported from ai-meta (the canonical home) so existing
+// `from "./predictor"` importers keep working.
+export { CONSENSUS_MODEL_NAME } from "./ai-meta";
+
+// Averages the individual models' scorelines into a single prediction,
+// rounding each score to the nearest whole goal. Returns null when there
+// are no predictions to combine.
+export function buildConsensusPrediction(
+  predictions: MatchPrediction[]
+): MatchPrediction | null {
+  if (predictions.length === 0) return null;
+  const mean = (nums: number[]) =>
+    Math.round(nums.reduce((sum, n) => sum + n, 0) / nums.length);
+  // Average only the models that reported a confidence; null if none did.
+  const confidences = predictions
+    .map((p) => p.confidence)
+    .filter((c): c is number => c !== null);
+  return {
+    homeScore: mean(predictions.map((p) => p.homeScore)),
+    awayScore: mean(predictions.map((p) => p.awayScore)),
+    reasoning: `Consensus of ${predictions.length} model${
+      predictions.length === 1 ? "" : "s"
+    } — the average of their predicted scorelines.`,
+    confidence: confidences.length > 0 ? mean(confidences) : null,
+  };
+}
+
+// Picks the most-backed value among `values`, grouping spellings that
+// normalize alike (so "Mbappé" and "Mbappe" count together). Ties break
+// toward the earliest pick; within the winning group the most common raw
+// spelling is returned for display.
+function majorityPick(values: string[]): string {
+  const groups = new Map<
+    string,
+    { count: number; firstIndex: number; spellings: Map<string, number> }
+  >();
+  values.forEach((value, index) => {
+    const key = normalizeName(value);
+    let group = groups.get(key);
+    if (!group) {
+      group = { count: 0, firstIndex: index, spellings: new Map() };
+      groups.set(key, group);
+    }
+    group.count += 1;
+    group.spellings.set(value, (group.spellings.get(value) ?? 0) + 1);
+  });
+
+  const winner = Array.from(groups.values()).sort(
+    (a, b) => b.count - a.count || a.firstIndex - b.firstIndex
+  )[0];
+  return Array.from(winner.spellings.entries()).sort(
+    (a, b) => b[1] - a[1]
+  )[0][0];
+}
+
+// The ensemble's tournament prediction: a per-prize majority vote across the
+// individual models' picks. Returns null when there are no picks to combine.
+export function buildTournamentConsensus(
+  outcomes: TournamentOutcome[]
+): TournamentOutcome | null {
+  if (outcomes.length === 0) return null;
+  return {
+    winner: majorityPick(outcomes.map((o) => o.winner)),
+    goldenBoot: majorityPick(outcomes.map((o) => o.goldenBoot)),
+    goldenGlove: majorityPick(outcomes.map((o) => o.goldenGlove)),
+    goldenBall: majorityPick(outcomes.map((o) => o.goldenBall)),
+    reasoning: `Majority vote of ${outcomes.length} model${
+      outcomes.length === 1 ? "" : "s"
+    } — the most-backed pick for each prize.`,
+  };
 }
 
 // ---------- Model registry ----------

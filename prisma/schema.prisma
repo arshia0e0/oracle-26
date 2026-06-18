@@ -65,6 +65,7 @@ model Prediction {
   predictedHomeScore Int
   predictedAwayScore Int
   reasoning          String
+  confidence         Int? // model's self-reported confidence, 0–100
   createdAt          DateTime @default(now())
 
   match Match @relation(fields: [matchId], references: [id])

@@ -1,10 +1,13 @@
-// ORACLE match card: kit-chip flags + banner team names, the score (or
-// kickoff time) in floodlight gold, a mono meta line, and each prophet's
-// call — with the points banked once the final whistle blows.
+// ORACLE match card: a team-tinted accent bar, kit-chip flags + banner team
+// names (winner highlighted once full-time), the score (or kickoff) in
+// floodlight gold, a consensus-confidence meter, a one-glance spread of how
+// the models clustered, then each prophet's call — points banked, and the
+// exact-score callers crowned — when the final whistle blows.
 
 import Link from "next/link";
 import FlagChip from "@/components/FlagChip";
-import { getAIMeta } from "@/lib/ai-meta";
+import { CONSENSUS_MODEL_NAME, getAIMeta } from "@/lib/ai-meta";
+import { teamAccent } from "@/lib/country-themes";
 import type {
   LeaderboardEntry,
   Match,
@@ -45,18 +48,74 @@ function kickoffDate(date: Date): string {
   });
 }
 
+interface SpreadBucket {
+  label: string; // "2–0"
+  count: number;
+  correct: boolean; // matches the actual result (finished only)
+}
+
+// Groups the individual models' scorelines into buckets, biggest first, so
+// the card can show how tightly the prophets agreed.
+function buildSpread(
+  predictions: Prediction[],
+  actual: { home: number | null; away: number | null }
+): SpreadBucket[] {
+  const buckets = new Map<string, SpreadBucket>();
+  for (const p of predictions) {
+    const label = `${p.predictedHomeScore}–${p.predictedAwayScore}`;
+    const correct =
+      actual.home !== null &&
+      p.predictedHomeScore === actual.home &&
+      p.predictedAwayScore === actual.away;
+    const b = buckets.get(label);
+    if (b) b.count += 1;
+    else buckets.set(label, { label, count: 1, correct });
+  }
+  return Array.from(buckets.values()).sort((a, b) => b.count - a.count);
+}
+
 export default function MatchCard({
   match,
   href,
+  showReasoning = false,
 }: {
   match: MatchWithDetails;
   href?: string;
+  // Each model's one-sentence "why". Off in list views (too noisy) and on
+  // for the standalone card on a match's own page.
+  showReasoning?: boolean;
 }) {
   const finished = match.status === "FINISHED";
   const live = match.status === "LIVE";
   const pointsByModel = new Map(
     match.leaderboardEntries.map((e) => [e.aiModel, e.pointsEarned])
   );
+
+  const homeWin =
+    finished && (match.homeScore ?? 0) > (match.awayScore ?? 0);
+  const awayWin =
+    finished && (match.awayScore ?? 0) > (match.homeScore ?? 0);
+
+  // Individual models drive the spread; the consensus row drives the meter.
+  const individual = match.predictions.filter(
+    (p) => p.aiModel !== CONSENSUS_MODEL_NAME
+  );
+  const consensus = match.predictions.find(
+    (p) => p.aiModel === CONSENSUS_MODEL_NAME
+  );
+  const confVals = individual
+    .map((p) => p.confidence)
+    .filter((c): c is number => c !== null);
+  const cardConfidence =
+    consensus?.confidence ??
+    (confVals.length
+      ? Math.round(confVals.reduce((a, b) => a + b, 0) / confVals.length)
+      : null);
+
+  const spread = buildSpread(individual, {
+    home: match.homeScore,
+    away: match.awayScore,
+  });
 
   const stage = match.group
     ? `Group ${match.group}`
@@ -71,51 +130,130 @@ export default function MatchCard({
       : kickoffTime(match.date);
   const tag = finished ? "Full time" : live ? "Live" : "Kick-off (UTC)";
 
+  const accentStyle = {
+    background: `linear-gradient(90deg, ${teamAccent(
+      match.homeTeam.name
+    )}, ${teamAccent(match.awayTeam.name)})`,
+  };
+
   const body = (
     <>
+      <span className="mc-accent" style={accentStyle} aria-hidden="true" />
       <div className="matchcard__body">
         <span className="regmark" style={{ top: 12, right: 12 }} />
         <div className="mc-teams">
-          <div className="mc-team">
+          <div className={"mc-team" + (awayWin ? " mc-team--dim" : "")}>
             <FlagChip team={match.homeTeam} />
-            <span className="mc-team__name">{match.homeTeam.name}</span>
+            <span className="mc-team__name">
+              {match.homeTeam.name}
+              {homeWin && <span className="mc-team__win"> ▲</span>}
+            </span>
           </div>
           <div className="mc-score">
             <span className="mc-score__big">{big}</span>
-            <span className="mc-score__tag">{tag}</span>
+            <span className="mc-score__tag">
+              {live && <span className="live-dot" aria-hidden="true" />}
+              {tag}
+            </span>
           </div>
-          <div className="mc-team">
+          <div className={"mc-team" + (homeWin ? " mc-team--dim" : "")}>
             <FlagChip team={match.awayTeam} />
-            <span className="mc-team__name">{match.awayTeam.name}</span>
+            <span className="mc-team__name">
+              {match.awayTeam.name}
+              {awayWin && <span className="mc-team__win"> ▲</span>}
+            </span>
           </div>
         </div>
+
+        {cardConfidence !== null && (
+          <div
+            className="mc-conf"
+            title={`Oracle consensus confidence: ${cardConfidence}%`}
+          >
+            <span className="mc-conf__lab">Consensus confidence</span>
+            <span className="mc-conf__track">
+              <span
+                className="mc-conf__fill"
+                style={{ width: `${cardConfidence}%` }}
+              />
+            </span>
+            <span className="mc-conf__num data">{cardConfidence}%</span>
+          </div>
+        )}
+
+        {spread.length > 0 && (
+          <div className="mc-spread" aria-label="Prediction spread">
+            {spread.map((s) => (
+              <span
+                key={s.label}
+                className={"mc-spread__seg" + (s.correct ? " is-correct" : "")}
+                style={{ flexGrow: s.count }}
+                title={`${s.count} model${s.count === 1 ? "" : "s"} called ${
+                  s.label
+                }`}
+              >
+                <span className="mc-spread__score data">{s.label}</span>
+                <span className="mc-spread__count data">×{s.count}</span>
+              </span>
+            ))}
+          </div>
+        )}
+
         <p className="mc-meta">{meta}</p>
       </div>
       {match.predictions.length > 0 && (
         <div className="mc-preds">
           {match.predictions.map((p) => {
-            const meta = getAIMeta(p.aiModel);
+            const aiMeta = getAIMeta(p.aiModel);
             const points = pointsByModel.get(p.aiModel);
-            const cls = finished
-              ? (points ?? 0) > 0
-                ? " win"
-                : " miss"
-              : "";
+            const exact =
+              finished &&
+              p.predictedHomeScore === match.homeScore &&
+              p.predictedAwayScore === match.awayScore;
+            const cls =
+              (finished ? ((points ?? 0) > 0 ? " win" : " miss") : "") +
+              (exact ? " pred--exact" : "");
             return (
               <div className={"pred" + cls} key={p.aiModel}>
-                <span className="pred__badge">{meta.short}</span>
-                <span className="pred__name">{p.aiModel}</span>
-                <span className="pred__score data">
-                  {p.predictedHomeScore}–{p.predictedAwayScore}
-                </span>
-                {finished && (
-                  <span
-                    className={
-                      "pred__pts data " + ((points ?? 0) > 0 ? "pos" : "neg")
-                    }
-                  >
-                    {points ?? 0} pts
+                <div className="pred__row">
+                  <span className="pred__badge">{aiMeta.short}</span>
+                  <span className="pred__id">
+                    <span className="pred__name">
+                      {p.aiModel}
+                      {exact && <span className="pred__exact">★ EXACT</span>}
+                    </span>
+                    {p.confidence !== null && (
+                      <span
+                        className="pred__conf"
+                        title={`${p.confidence}% confident`}
+                      >
+                        <span className="pred__conf-bar">
+                          <span
+                            className="pred__conf-fill"
+                            style={{ width: `${p.confidence}%` }}
+                          />
+                        </span>
+                        <span className="pred__conf-num data">
+                          {p.confidence}%
+                        </span>
+                      </span>
+                    )}
                   </span>
+                  <span className="pred__score data">
+                    {p.predictedHomeScore}–{p.predictedAwayScore}
+                  </span>
+                  {finished && (
+                    <span
+                      className={
+                        "pred__pts data " + ((points ?? 0) > 0 ? "pos" : "neg")
+                      }
+                    >
+                      {points ?? 0} pts
+                    </span>
+                  )}
+                </div>
+                {showReasoning && p.reasoning && (
+                  <p className="pred__reason">“{p.reasoning}”</p>
                 )}
               </div>
             );

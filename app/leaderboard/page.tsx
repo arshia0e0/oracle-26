@@ -2,6 +2,7 @@
 // where every row expands (native <details>, no client JS) into a
 // match-by-match breakdown, and each prophet's tournament picks.
 
+import type { CSSProperties } from "react";
 import { getAIMeta } from "@/lib/ai-meta";
 import { prisma } from "@/lib/db";
 import { buildProphetRows, pct } from "@/lib/prophets";
@@ -50,8 +51,32 @@ function Podium({ rows }: { rows: ProphetRow[] }) {
   );
 }
 
-function StandingsRow({ row, i }: { row: ProphetRow; i: number }) {
+function FormSpark({ form }: { form: ("w" | "d" | "l")[] }) {
+  if (form.length === 0) return null;
+  return (
+    <span className="form-spark" aria-label="Recent form (latest right)">
+      {form.map((f, idx) => (
+        <span
+          key={idx}
+          className={"fd fd--" + f}
+          title={f === "w" ? "exact score" : f === "d" ? "points" : "blank"}
+        />
+      ))}
+    </span>
+  );
+}
+
+function StandingsRow({
+  row,
+  i,
+  maxPoints,
+}: {
+  row: ProphetRow;
+  i: number;
+  maxPoints: number;
+}) {
   const meta = getAIMeta(row.aiModel);
+  const barWidth = maxPoints > 0 ? row.totalPoints / maxPoints : 0;
   return (
     <details
       className={"std-row" + (i === 0 ? " std-row--lead" : "")}
@@ -65,6 +90,7 @@ function StandingsRow({ row, i }: { row: ProphetRow; i: number }) {
             <span className="std-model__name">{row.aiModel}</span>
             <br />
             <span className="std-model__role">{meta.role}</span>
+            <FormSpark form={row.form} />
           </span>
         </span>
         <span className="std-c std-c--pts">{row.totalPoints}</span>
@@ -74,6 +100,11 @@ function StandingsRow({ row, i }: { row: ProphetRow; i: number }) {
           {pct(row.winnerCorrect, row.matchesPredicted)}
         </span>
         <span className="std-caret">▾</span>
+        <span
+          className="std-bar"
+          style={{ "--w": barWidth } as CSSProperties}
+          aria-hidden="true"
+        />
       </summary>
       <div className="std-break">
         {row.results.length === 0 ? (
@@ -128,6 +159,7 @@ export default async function LeaderboardPage() {
       : null;
 
   const anyScored = rows.some((r) => r.matchesPredicted > 0);
+  const maxPoints = Math.max(1, ...rows.map((r) => r.totalPoints));
 
   return (
     <div className="wrap page">
@@ -176,7 +208,12 @@ export default async function LeaderboardPage() {
             <span />
           </div>
           {rows.map((row, i) => (
-            <StandingsRow key={row.aiModel} row={row} i={i} />
+            <StandingsRow
+              key={row.aiModel}
+              row={row}
+              i={i}
+              maxPoints={maxPoints}
+            />
           ))}
         </div>
       </div>

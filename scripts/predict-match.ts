@@ -5,6 +5,7 @@
 // Usage: npx tsx scripts/predict-match.ts -- --matchId=12345
 
 import "dotenv/config";
+import { upsertConsensusPrediction } from "../lib/consensus";
 import { prisma } from "../lib/db";
 import { buildMatchPrompt, MATCH_AI_MODELS } from "../lib/predictor";
 
@@ -70,6 +71,7 @@ async function main() {
         predictedHomeScore: prediction.homeScore,
         predictedAwayScore: prediction.awayScore,
         reasoning: prediction.reasoning,
+        confidence: prediction.confidence,
       },
     });
     saved++;
@@ -77,6 +79,10 @@ async function main() {
       `[${ai.name}] predicted ${prediction.homeScore}-${prediction.awayScore}: ${prediction.reasoning}`
     );
   }
+
+  // Recompute the ensemble row from whatever models have predicted so far.
+  const hasConsensus = await upsertConsensusPrediction(matchId);
+  if (hasConsensus) console.log("[Oracle Consensus] updated from current predictions.");
 
   console.log(`Done. Saved ${saved} new prediction(s) for match ${matchId}.`);
 }

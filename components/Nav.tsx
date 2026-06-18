@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/fixtures", label: "Fixtures" },
   { href: "/prophets", label: "The Prophets" },
   { href: "/leaderboard", label: "Form Table" },
+  { href: "/analytics", label: "Analytics" },
   { href: "/teams", label: "Teams" },
 ];
 

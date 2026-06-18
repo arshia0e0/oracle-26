@@ -4,6 +4,7 @@
 //   2. Predict upcoming matches (next 48h) that have no predictions yet.
 //   3. Score finished matches that have no leaderboard entries yet.
 
+import { upsertConsensusPrediction } from "./consensus";
 import { prisma } from "./db";
 import { buildMatchPrompt, MATCH_AI_MODELS } from "./predictor";
 import { scoreMatch } from "./scoring";
@@ -63,6 +64,7 @@ async function predictUpcomingMatches(): Promise<number> {
           predictedHomeScore: prediction.homeScore,
           predictedAwayScore: prediction.awayScore,
           reasoning: prediction.reasoning,
+          confidence: prediction.confidence,
         },
       });
       saved++;
@@ -70,7 +72,11 @@ async function predictUpcomingMatches(): Promise<number> {
         `[${ai.name}] predicted ${prediction.homeScore}-${prediction.awayScore}`
       );
     }
-    if (saved > 0) predicted++;
+    if (saved > 0) {
+      // The ensemble row: average of every model that answered for this match.
+      await upsertConsensusPrediction(match.id);
+      predicted++;
+    }
   }
 
   return predicted;

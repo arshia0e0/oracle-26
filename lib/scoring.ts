@@ -29,17 +29,21 @@ export interface TournamentScoreBreakdown {
   points: number;
 }
 
-// Case-insensitive comparison; tolerates minor punctuation/accent noise
-// in AI-written names (e.g. "Kylian Mbappe" vs "Kylian Mbappé").
+// Canonical form for case-insensitive name comparison; tolerates minor
+// punctuation/accent noise in AI-written names (e.g. "Kylian Mbappe" vs
+// "Kylian Mbappé"). Exported so the consensus majority vote groups names
+// exactly the way scoring compares them.
+export function normalizeName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9 ]/gi, "")
+    .trim()
+    .toLowerCase();
+}
+
 function sameName(a: string, b: string): boolean {
-  const normalize = (s: string) =>
-    s
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/[^a-z0-9 ]/gi, "")
-      .trim()
-      .toLowerCase();
-  return normalize(a) === normalize(b);
+  return normalizeName(a) === normalizeName(b);
 }
 
 export function scoreTournamentPrediction(

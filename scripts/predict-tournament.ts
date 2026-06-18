@@ -8,6 +8,7 @@
 // Usage: npx tsx scripts/predict-tournament.ts
 
 import "dotenv/config";
+import { upsertConsensusTournamentPrediction } from "../lib/consensus";
 import { prisma } from "../lib/db";
 import { buildTournamentPrompt, TOURNAMENT_AI_MODELS } from "../lib/predictor";
 
@@ -68,6 +69,10 @@ async function main() {
     }
     saved++;
   }
+
+  // Recompute the ensemble's majority-vote picks from all individual rows.
+  const hasConsensus = await upsertConsensusTournamentPrediction();
+  if (hasConsensus) console.log("[Oracle Consensus] tournament picks updated by majority vote.");
 
   console.log(`Done. Saved/updated ${saved} tournament prediction(s).`);
 }

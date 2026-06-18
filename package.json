@@ -12,6 +12,7 @@
     "predict-tournament": "tsx scripts/predict-tournament.ts",
     "score-match": "tsx scripts/score-match.ts",
     "daily-update": "tsx scripts/daily-update.ts",
+    "backfill-consensus": "tsx scripts/backfill-consensus.ts",
     "setup-turso": "tsx scripts/setup-turso.ts"
   },
   "dependencies": {

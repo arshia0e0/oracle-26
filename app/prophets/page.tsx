@@ -7,6 +7,7 @@ import path from "path";
 import ProphetPickDeck from "@/components/ProphetPickDeck";
 import ProphetSticker from "@/components/ProphetSticker";
 import { AI_META, getAIMeta } from "@/lib/ai-meta";
+import { COUNTRY_THEMES } from "@/lib/country-themes";
 import { prisma } from "@/lib/db";
 import { buildPlayerResolutionMap } from "@/lib/player-name-match";
 import { avg, buildProphetRows, pct } from "@/lib/prophets";
@@ -30,21 +31,6 @@ const PLAYER_PHOTO_FILES: Record<string, string> = {
   "alisson becker": "alisson",
   "mike maignan": "maignan",
   "thibaut courtois": "courtois",
-};
-
-// National tints for the predicted champion (same palettes as the
-// homepage star cards); unknown countries keep the default sleeve.
-const COUNTRY_THEMES: Record<string, { t1: string; t2: string }> = {
-  Argentina: { t1: "#75c2ee", t2: "#f5d77a" },
-  Portugal: { t1: "#d6293c", t2: "#1d8a4e" },
-  Norway: { t1: "#c8102e", t2: "#9fd4ff" },
-  Brazil: { t1: "#f6d000", t2: "#1f9d4d" },
-  Belgium: { t1: "#f4c20d", t2: "#ed2939" },
-  Netherlands: { t1: "#ff7a1a", t2: "#3450a3" },
-  Spain: { t1: "#e63232", t2: "#f4c20d" },
-  France: { t1: "#3a5bd9", t2: "#ef4135" },
-  England: { t1: "#cf2435", t2: "#dfe8f5" },
-  Germany: { t1: "#f4c20d", t2: "#d6293c" },
 };
 
 // Used only for the PLAYER_PHOTO_FILES lookup. Strips accents and
@@ -140,15 +126,16 @@ export default async function ProphetsPage() {
       <header className="page-head">
         <div className="page-eyebrows reveal">
           <span className="eyebrow">The Squad Sheet</span>
-          <span className="label-mono">{"// SIX MACHINE MINDS"}</span>
+          <span className="label-mono">{"// SIX MACHINE MINDS + ONE HIVE"}</span>
         </div>
         <h1 className="page-title reveal">
           The <em>Prophets</em>
         </h1>
         <p className="page-intro reveal">
-          Six frontier models, each with its own temperament. They read the
-          same data and reach for the same trophy — but no two call a match
-          the same way. <b>Meet the oracles.</b>
+          Six frontier models, each with its own temperament — plus the Oracle
+          Consensus, the average of them all. They read the same data and reach
+          for the same trophy, but no two call a match the same way.{" "}
+          <b>Meet the oracles.</b>
         </p>
       </header>
 

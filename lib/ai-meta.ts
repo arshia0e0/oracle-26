@@ -2,6 +2,11 @@
 // ORACLE design. The `name` values must match the canonical aiModel
 // names stored in the database (see MATCH_AI_MODELS in lib/predictor.ts).
 
+// Canonical aiModel name for the ensemble "model" (the averaged/majority
+// verdict of the others). Defined here — the lightest shared module — so UI
+// components can reference it without importing the AI-SDK-heavy predictor.
+export const CONSENSUS_MODEL_NAME = "Oracle Consensus";
+
 export interface AIMeta {
   name: string;
   short: string; // monogram shown in badges and sticker portraits
@@ -65,6 +70,15 @@ export const AI_META: AIMeta[] = [
     role: "NVIDIA's Titan",
     blurb:
       "Half a trillion parameters of silicon muscle. Crunches every fixture like it's a benchmark to beat.",
+  },
+  {
+    name: "Oracle Consensus",
+    short: "OC",
+    no: "07",
+    org: "THE COLLECTIVE",
+    role: "The Hive Mind",
+    blurb:
+      "Not a model but a multitude — the averaged scoreline of all six prophets. Tests the oldest question in forecasting: is the crowd wiser than its smartest voice?",
   },
 ];
 

@@ -21,6 +21,12 @@ Every fixture of the tournament is scored by six large language models — "The 
 | 04 | Llama 4 Scout | Meta (via Groq) | The Open Spirit |
 | 05 | Qwen 3 | Alibaba | The Dark Horse |
 | 06 | Nemotron Ultra | NVIDIA | NVIDIA's Titan |
+| 07 | Oracle Consensus | The Collective | The Hive Mind |
+
+**Oracle Consensus** isn't a model — it's the ensemble. For every match it
+predicts the average of the six models' scorelines (rounded to whole goals)
+and competes on the leaderboard as its own contestant, testing whether the
+crowd of AIs beats the best individual one.
 
 ## Scoring System
 
