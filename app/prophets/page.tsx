@@ -5,6 +5,7 @@
 import { existsSync } from "fs";
 import path from "path";
 import ProphetPickDeck from "@/components/ProphetPickDeck";
+import CountUp from "@/components/CountUp";
 import ProphetSticker from "@/components/ProphetSticker";
 import { AI_META, getAIMeta } from "@/lib/ai-meta";
 import { COUNTRY_THEMES } from "@/lib/country-themes";
@@ -142,7 +143,11 @@ export default async function ProphetsPage() {
       <div className="prophet-band reveal">
         {band.map(([num, label]) => (
           <div className="pb-cell" key={label}>
-            <span className="pb-cell__num">{num}</span>
+            {typeof num === "number" ? (
+              <CountUp className="pb-cell__num" value={num} />
+            ) : (
+              <span className="pb-cell__num">{num}</span>
+            )}
             <span className="pb-cell__lab">{label}</span>
           </div>
         ))}

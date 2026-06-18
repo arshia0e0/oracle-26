@@ -2,6 +2,7 @@
 // crowd-vs-mind duel, ranked accuracy and points charts (with model badges),
 // and a confidence-calibration chart. Pure server-rendered CSS/SVG.
 
+import CountUp from "@/components/CountUp";
 import { CONSENSUS_MODEL_NAME, getAIMeta } from "@/lib/ai-meta";
 import { prisma } from "@/lib/db";
 import { buildProphetRows } from "@/lib/prophets";
@@ -155,7 +156,11 @@ export default async function AnalyticsPage() {
           <div className="prophet-band reveal">
             {band.map(([num, label]) => (
               <div className="pb-cell" key={label}>
-                <span className="pb-cell__num">{num}</span>
+                {typeof num === "number" ? (
+                  <CountUp className="pb-cell__num" value={num} />
+                ) : (
+                  <span className="pb-cell__num">{num}</span>
+                )}
                 <span className="pb-cell__lab">{label}</span>
               </div>
             ))}

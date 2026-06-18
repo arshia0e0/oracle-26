@@ -3,6 +3,7 @@
 // match-by-match breakdown, and each prophet's tournament picks.
 
 import type { CSSProperties } from "react";
+import CountUp from "@/components/CountUp";
 import { getAIMeta } from "@/lib/ai-meta";
 import { prisma } from "@/lib/db";
 import { buildProphetRows, pct } from "@/lib/prophets";
@@ -40,7 +41,9 @@ function Podium({ rows }: { rows: ProphetRow[] }) {
             <span className="podium-badge">{meta.short}</span>
             <div className="podium-name">{row.aiModel}</div>
             <div className="podium-role">{meta.role}</div>
-            <div className="podium-pts">{row.totalPoints}</div>
+            <div className="podium-pts">
+              <CountUp value={row.totalPoints} />
+            </div>
             <div className="podium-sub">
               {row.matchesPredicted} matches · {row.perfectPredictions} perfect
             </div>
@@ -93,7 +96,9 @@ function StandingsRow({
             <FormSpark form={row.form} />
           </span>
         </span>
-        <span className="std-c std-c--pts">{row.totalPoints}</span>
+        <span className="std-c std-c--pts">
+          <CountUp value={row.totalPoints} />
+        </span>
         <span className="std-c">{row.matchesPredicted}</span>
         <span className="std-c">{row.perfectPredictions}</span>
         <span className="std-c">
