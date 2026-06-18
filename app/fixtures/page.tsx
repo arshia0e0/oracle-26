@@ -100,21 +100,55 @@ export default async function FixturesPage({
 }) {
   const filter = searchParams.filter ?? "all";
 
-  // Turso serves *unfiltered* autocommit full-table reads from an edge replica
-  // that can lag behind freshly-synced writes. Interactive $transaction()
-  // callbacks throw under Vercel's serverless runtime with the HTTP libSQL
-  // adapter, so instead we carry a harmless always-true `where` clause: a
-  // filtered read routes to the primary and stays current without a tx.
-  const matches = await prisma.match.findMany({
-    where: { id: { gte: 0 } },
-    include: {
-      homeTeam: true,
-      awayTeam: true,
-      predictions: { orderBy: { aiModel: "asc" } },
-      leaderboardEntries: true,
-    },
-    orderBy: { date: "asc" },
-  });
+  // Each read carries a harmless always-true `where: { id: { gte: 0 } }` so
+  // Turso routes it to the primary instead of a lagging edge replica. We also
+  // avoid a wide relational `include`: under Vercel's serverless runtime with
+  // the HTTP libSQL adapter that joined query intermittently returns stale or
+  // partial rows (here: freshly-finished matches still showing as upcoming),
+  // so we fetch each table flat — reliable — and stitch them together in memory.
+  const [rawMatches, teams, predictions, leaderboardEntries] = await Promise.all(
+    [
+      prisma.match.findMany({
+        where: { id: { gte: 0 } },
+        orderBy: { date: "asc" },
+      }),
+      prisma.team.findMany({ where: { id: { gte: 0 } } }),
+      prisma.prediction.findMany({
+        where: { id: { gte: 0 } },
+        orderBy: { aiModel: "asc" },
+      }),
+      prisma.leaderboardEntry.findMany({ where: { id: { gte: 0 } } }),
+    ]
+  );
+
+  const teamById = new Map(teams.map((t) => [t.id, t]));
+  const predsByMatch = new Map<number, typeof predictions>();
+  for (const p of predictions) {
+    const list = predsByMatch.get(p.matchId);
+    if (list) list.push(p);
+    else predsByMatch.set(p.matchId, [p]);
+  }
+  const entriesByMatch = new Map<number, typeof leaderboardEntries>();
+  for (const e of leaderboardEntries) {
+    const list = entriesByMatch.get(e.matchId);
+    if (list) list.push(e);
+    else entriesByMatch.set(e.matchId, [e]);
+  }
+
+  const matches: MatchWithDetails[] = rawMatches
+    .map((m) => {
+      const homeTeam = teamById.get(m.homeTeamId);
+      const awayTeam = teamById.get(m.awayTeamId);
+      if (!homeTeam || !awayTeam) return null;
+      return {
+        ...m,
+        homeTeam,
+        awayTeam,
+        predictions: predsByMatch.get(m.id) ?? [],
+        leaderboardEntries: entriesByMatch.get(m.id) ?? [],
+      };
+    })
+    .filter((m): m is MatchWithDetails => m !== null);
 
   const tabs = buildTabs(matches);
   const filtered = applyFilter(matches, filter);
