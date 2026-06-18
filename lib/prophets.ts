@@ -35,18 +35,30 @@ export function avg(points: number, total: number): string {
 }
 
 export async function buildProphetRows(): Promise<ProphetRow[]> {
-  // Turso serves *unfiltered* autocommit full-table reads from an edge replica
-  // that can lag behind freshly-synced writes. Interactive $transaction()
-  // callbacks throw under Vercel's serverless runtime with the HTTP libSQL
-  // adapter, so instead we carry a harmless always-true `where` clause: a
-  // filtered read routes to the primary and stays current without a tx.
-  const entries = await prisma.leaderboardEntry.findMany({
-    where: { id: { gte: 0 } },
-    include: { match: { include: { homeTeam: true, awayTeam: true } } },
-    orderBy: { match: { date: "asc" } },
-  });
-  const predictions = await prisma.prediction.findMany({
-    where: { id: { gte: 0 } },
+  // Each read carries a harmless always-true `where: { id: { gte: 0 } }`: an
+  // unfiltered full-table read on Turso can be served from a lagging edge
+  // replica, while a filtered read stays current.
+  //
+  // We also deliberately avoid a relational `include` + `orderBy: { match: ... }`.
+  // Under Vercel's serverless runtime with the HTTP libSQL adapter, that wide
+  // joined query intermittently returns PARTIAL results (rows silently dropped),
+  // which left the live Form Table missing freshly-scored matches. Flat reads
+  // are reliable, so we fetch each table on its own and join in memory.
+  const [entries, matches, teams, predictions] = await Promise.all([
+    prisma.leaderboardEntry.findMany({ where: { id: { gte: 0 } } }),
+    prisma.match.findMany({ where: { id: { gte: 0 } } }),
+    prisma.team.findMany({ where: { id: { gte: 0 } } }),
+    prisma.prediction.findMany({ where: { id: { gte: 0 } } }),
+  ]);
+
+  const teamById = new Map(teams.map((t) => [t.id, t]));
+  const matchById = new Map(matches.map((m) => [m.id, m]));
+
+  // Oldest-scored-first, matching the previous orderBy: { match: { date } }.
+  entries.sort((a, b) => {
+    const da = matchById.get(a.matchId)?.date?.getTime() ?? 0;
+    const db = matchById.get(b.matchId)?.date?.getTime() ?? 0;
+    return da - db;
   });
 
   const predictionByKey = new Map(
@@ -88,6 +100,11 @@ export async function buildProphetRows(): Promise<ProphetRow[]> {
       rows.set(entry.aiModel, row);
     }
 
+    const match = matchById.get(entry.matchId);
+    if (!match) continue; // entry with no resolvable match; skip defensively
+    const homeName = teamById.get(match.homeTeamId)?.name ?? "?";
+    const awayName = teamById.get(match.awayTeamId)?.name ?? "?";
+
     const breakdown: ScoreBreakdown = JSON.parse(entry.breakdown);
     row.totalPoints += entry.pointsEarned;
     row.matchesPredicted += 1;
@@ -95,10 +112,10 @@ export async function buildProphetRows(): Promise<ProphetRow[]> {
     if (breakdown.winner) row.winnerCorrect += 1;
     row.results.push({
       matchId: entry.matchId,
-      date: entry.match.date,
-      label: `${entry.match.homeTeam.name} ${entry.match.homeScore ?? "?"}–${
-        entry.match.awayScore ?? "?"
-      } ${entry.match.awayTeam.name}`,
+      date: match.date,
+      label: `${homeName} ${match.homeScore ?? "?"}–${
+        match.awayScore ?? "?"
+      } ${awayName}`,
       predicted:
         predictionByKey.get(`${entry.aiModel}:${entry.matchId}`) ?? "?",
       points: entry.pointsEarned,
