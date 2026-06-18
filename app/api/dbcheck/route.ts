@@ -17,6 +17,16 @@ export async function GET() {
 
   const finishedInBulk = bulk.filter((m) => m.status === "FINISHED").length;
 
+  // Does raw SQL read fresh where the ORM bulk read is stale?
+  let rawFinished = -1;
+  try {
+    const res = await prisma.$queryRaw<{ n: bigint }[]>`
+      SELECT COUNT(*) AS n FROM "Match" WHERE status = 'FINISHED'`;
+    rawFinished = Number(res[0]?.n ?? -1);
+  } catch {
+    rawFinished = -2;
+  }
+
   const rows: Record<string, unknown>[] = [];
   for (const id of IDS) {
     const fromBulk = bulkById.get(id);
@@ -33,6 +43,7 @@ export async function GET() {
   return NextResponse.json({
     totalMatchesInBulk: bulk.length,
     finishedInBulk,
+    rawFinished,
     rows,
   });
 }
