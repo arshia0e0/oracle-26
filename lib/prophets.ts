@@ -35,20 +35,19 @@ export function avg(points: number, total: number): string {
 }
 
 export async function buildProphetRows(): Promise<ProphetRow[]> {
-  // Each read carries a harmless always-true `where: { id: { gte: 0 } }`: an
-  // unfiltered full-table read on Turso can be served from a lagging edge
-  // replica, while a filtered read stays current.
+  // IMPORTANT: do NOT add `where: { id: { gte: 0 } }` to these reads. That
+  // clause was once believed to force a fresh primary read on Turso, but it
+  // does the opposite: under the HTTP libSQL adapter a findMany filtered by
+  // `id >= 0` is served STALE (it lagged behind freshly-scored matches),
+  // whereas bare findMany / raw SQL / findUnique all read current data.
   //
-  // We also deliberately avoid a relational `include` + `orderBy: { match: ... }`.
-  // Under Vercel's serverless runtime with the HTTP libSQL adapter, that wide
-  // joined query intermittently returns PARTIAL results (rows silently dropped),
-  // which left the live Form Table missing freshly-scored matches. Flat reads
-  // are reliable, so we fetch each table on its own and join in memory.
+  // We also avoid a wide relational include + orderBy on a relation, which can
+  // return partial rows on this stack — flat reads joined in memory are robust.
   const [entries, matches, teams, predictions] = await Promise.all([
-    prisma.leaderboardEntry.findMany({ where: { id: { gte: 0 } } }),
-    prisma.match.findMany({ where: { id: { gte: 0 } } }),
-    prisma.team.findMany({ where: { id: { gte: 0 } } }),
-    prisma.prediction.findMany({ where: { id: { gte: 0 } } }),
+    prisma.leaderboardEntry.findMany(),
+    prisma.match.findMany(),
+    prisma.team.findMany(),
+    prisma.prediction.findMany(),
   ]);
 
   const teamById = new Map(teams.map((t) => [t.id, t]));

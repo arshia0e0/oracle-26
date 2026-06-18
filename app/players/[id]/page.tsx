@@ -67,7 +67,9 @@ export default async function PlayerPage({ params }: Props) {
       },
       orderBy: { date: "asc" },
     }),
-    prisma.tournamentPrediction.findMany({ where: { id: { gte: 0 } } }),
+    // No `where: { id: { gte: 0 } }` — that filter reads stale on Turso's HTTP
+    // libSQL adapter; bare findMany reads current data.
+    prisma.tournamentPrediction.findMany(),
   ]);
 
   const upcoming = matches.filter((m) => m.status !== "FINISHED");

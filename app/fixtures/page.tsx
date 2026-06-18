@@ -100,24 +100,17 @@ export default async function FixturesPage({
 }) {
   const filter = searchParams.filter ?? "all";
 
-  // Each read carries a harmless always-true `where: { id: { gte: 0 } }` so
-  // Turso routes it to the primary instead of a lagging edge replica. We also
-  // avoid a wide relational `include`: under Vercel's serverless runtime with
-  // the HTTP libSQL adapter that joined query intermittently returns stale or
-  // partial rows (here: freshly-finished matches still showing as upcoming),
-  // so we fetch each table flat — reliable — and stitch them together in memory.
+  // IMPORTANT: do NOT filter these reads by `where: { id: { gte: 0 } }`. On
+  // Turso's HTTP libSQL adapter that clause is served STALE (it left just-
+  // finished matches still showing as upcoming); bare findMany reads current.
+  // We also avoid a wide relational include (which can return partial rows on
+  // this stack) and stitch the flat reads together in memory.
   const [rawMatches, teams, predictions, leaderboardEntries] = await Promise.all(
     [
-      prisma.match.findMany({
-        where: { id: { gte: 0 } },
-        orderBy: { date: "asc" },
-      }),
-      prisma.team.findMany({ where: { id: { gte: 0 } } }),
-      prisma.prediction.findMany({
-        where: { id: { gte: 0 } },
-        orderBy: { aiModel: "asc" },
-      }),
-      prisma.leaderboardEntry.findMany({ where: { id: { gte: 0 } } }),
+      prisma.match.findMany({ orderBy: { date: "asc" } }),
+      prisma.team.findMany(),
+      prisma.prediction.findMany({ orderBy: { aiModel: "asc" } }),
+      prisma.leaderboardEntry.findMany(),
     ]
   );
 

@@ -108,12 +108,9 @@ function StandingsRow({ row, i }: { row: ProphetRow; i: number }) {
 export default async function LeaderboardPage() {
   const [rows, tournamentPicks, finishedFinal] = await Promise.all([
     buildProphetRows(),
-    // A trivially-true `where` keeps this read consistent with the primary on
-    // Turso; a bare findMany can come back empty from a lagging edge replica.
-    prisma.tournamentPrediction.findMany({
-      where: { id: { gte: 0 } },
-      orderBy: { aiModel: "asc" },
-    }),
+    // Do NOT add `where: { id: { gte: 0 } }` — it reads stale on Turso's HTTP
+    // libSQL adapter; a bare findMany reads current data.
+    prisma.tournamentPrediction.findMany({ orderBy: { aiModel: "asc" } }),
     prisma.match.findFirst({
       where: { stage: "FINAL", status: "FINISHED" },
       include: { homeTeam: true, awayTeam: true },
