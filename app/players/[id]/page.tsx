@@ -67,7 +67,7 @@ export default async function PlayerPage({ params }: Props) {
       },
       orderBy: { date: "asc" },
     }),
-    prisma.tournamentPrediction.findMany(),
+    prisma.tournamentPrediction.findMany({ where: { id: { gte: 0 } } }),
   ]);
 
   const upcoming = matches.filter((m) => m.status !== "FINISHED");

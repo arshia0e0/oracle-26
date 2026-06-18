@@ -174,7 +174,11 @@ export async function scoreMatch(matchId: number): Promise<void> {
  * sorted by total points descending.
  */
 export async function getLeaderboard(): Promise<LeaderboardRow[]> {
-  const entries = await prisma.leaderboardEntry.findMany();
+  // A bare findMany() can be served by a lagging Turso edge replica and
+  // return stale/empty rows. A trivial where clause forces a consistent read.
+  const entries = await prisma.leaderboardEntry.findMany({
+    where: { id: { gte: 0 } },
+  });
 
   const rows = new Map<string, LeaderboardRow>();
   for (const entry of entries) {
