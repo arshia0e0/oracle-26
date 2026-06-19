@@ -16,19 +16,29 @@ export interface DailyUpdateSummary {
   scored: number;
 }
 
-const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
-
 /**
- * Predicts every SCHEDULED match kicking off within the next 48 hours
- * that has no predictions yet. Returns the number of matches that
- * received at least one new prediction.
+ * Predicts SCHEDULED matches that have no predictions yet. By default it
+ * only looks at matches kicking off within `windowHours` of now; pass
+ * `null` to predict every unpredicted scheduled match regardless of date.
+ * Returns the number of matches that received at least one new prediction.
  */
-async function predictUpcomingMatches(): Promise<number> {
+async function predictUpcomingMatches(
+  windowHours: number | null = 48
+): Promise<number> {
   const now = new Date();
+  const dateFilter =
+    windowHours === null
+      ? {}
+      : {
+          date: {
+            gte: now,
+            lte: new Date(now.getTime() + windowHours * 60 * 60 * 1000),
+          },
+        };
   const matches = await prisma.match.findMany({
     where: {
       status: "SCHEDULED",
-      date: { gte: now, lte: new Date(now.getTime() + FORTY_EIGHT_HOURS_MS) },
+      ...dateFilter,
       predictions: { none: {} },
     },
     include: {
@@ -115,9 +125,21 @@ async function scoreFinishedMatches(): Promise<number> {
   return scored;
 }
 
-export async function runDailyUpdate(): Promise<DailyUpdateSummary> {
+export interface RunDailyUpdateOptions {
+  /**
+   * How far ahead to look for matches needing predictions, in hours.
+   * Defaults to 48. Pass `null` to predict every unpredicted scheduled
+   * match regardless of when it kicks off.
+   */
+  predictWindowHours?: number | null;
+}
+
+export async function runDailyUpdate(
+  options: RunDailyUpdateOptions = {}
+): Promise<DailyUpdateSummary> {
+  const { predictWindowHours = 48 } = options;
   const sync = await syncAll();
-  const predicted = await predictUpcomingMatches();
+  const predicted = await predictUpcomingMatches(predictWindowHours);
   const scored = await scoreFinishedMatches();
 
   const summary: DailyUpdateSummary = {
