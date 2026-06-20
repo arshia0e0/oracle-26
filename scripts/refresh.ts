@@ -14,7 +14,7 @@ async function main() {
   const summary = await runDailyUpdate({ predictWindowHours: null });
   console.log(
     `\nRefresh complete: synced ${summary.synced} match(es), ` +
-      `predicted ${summary.predicted} match(es), scored ${summary.scored} match(es).`
+      `scored ${summary.scored} match(es), predicted ${summary.predicted} match(es).`
   );
 }
 

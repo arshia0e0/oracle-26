@@ -1,8 +1,9 @@
 // The daily maintenance routine, shared by scripts/daily-update.ts and
 // the /api/cron route:
 //   1. Sync match results from football-data.org.
-//   2. Predict upcoming matches (next 48h) that have no predictions yet.
-//   3. Score finished matches that have no leaderboard entries yet.
+//   2. Score finished matches that have no leaderboard entries yet
+//      (give the AIs their points first, before the slower predict step).
+//   3. Predict upcoming matches that have no predictions yet.
 
 import { upsertConsensusPrediction } from "./consensus";
 import { prisma } from "./db";
@@ -17,9 +18,14 @@ export interface DailyUpdateSummary {
 }
 
 /**
- * Predicts SCHEDULED matches that have no predictions yet. By default it
- * only looks at matches kicking off within `windowHours` of now; pass
- * `null` to predict every unpredicted scheduled match regardless of date.
+ * Predicts SCHEDULED matches that are missing one or more oracle predictions.
+ * By default it only looks at matches kicking off within `windowHours` of now;
+ * pass `null` to consider every unfinished scheduled match regardless of date.
+ *
+ * For each match it only calls the oracles that don't already have a prediction
+ * stored, so a model that failed transiently on an earlier run (e.g. a provider
+ * 503) gets retried and backfilled rather than being skipped forever — a match
+ * is no longer skipped just because it already has *some* predictions.
  * Returns the number of matches that received at least one new prediction.
  */
 async function predictUpcomingMatches(
@@ -39,20 +45,31 @@ async function predictUpcomingMatches(
     where: {
       status: "SCHEDULED",
       ...dateFilter,
-      predictions: { none: {} },
     },
     include: {
       homeTeam: { include: { players: true } },
       awayTeam: { include: { players: true } },
+      predictions: { select: { aiModel: true } },
     },
     orderBy: { date: "asc" },
   });
-  console.log(`${matches.length} upcoming match(es) need predictions.`);
+
+  // Keep only matches still missing at least one oracle prediction.
+  const matchesNeedingPredictions = matches.filter((match) => {
+    const have = new Set(match.predictions.map((p) => p.aiModel));
+    return MATCH_AI_MODELS.some((ai) => !have.has(ai.name));
+  });
+  console.log(
+    `${matchesNeedingPredictions.length} upcoming match(es) need predictions.`
+  );
 
   let predicted = 0;
-  for (const match of matches) {
+  for (const match of matchesNeedingPredictions) {
+    const have = new Set(match.predictions.map((p) => p.aiModel));
+    const missing = MATCH_AI_MODELS.filter((ai) => !have.has(ai.name));
     console.log(
-      `Predicting ${match.homeTeam.name} vs ${match.awayTeam.name} (${match.date.toISOString()})`
+      `Predicting ${match.homeTeam.name} vs ${match.awayTeam.name} (${match.date.toISOString()})` +
+        ` — ${missing.length} model(s): ${missing.map((ai) => ai.name).join(", ")}`
     );
     const prompt = buildMatchPrompt(
       match,
@@ -63,7 +80,7 @@ async function predictUpcomingMatches(
     );
 
     let saved = 0;
-    for (const ai of MATCH_AI_MODELS) {
+    for (const ai of missing) {
       const prediction = await ai.predict(prompt);
       if (!prediction) continue; // errors were already logged by the predictor
 
@@ -139,8 +156,10 @@ export async function runDailyUpdate(
 ): Promise<DailyUpdateSummary> {
   const { predictWindowHours = 48 } = options;
   const sync = await syncAll();
-  const predicted = await predictUpcomingMatches(predictWindowHours);
+  // Score first so the AIs get their points for freshly finished matches even
+  // if the slower, API-heavy predict step errors out partway through.
   const scored = await scoreFinishedMatches();
+  const predicted = await predictUpcomingMatches(predictWindowHours);
 
   const summary: DailyUpdateSummary = {
     synced: sync.matchesSynced,
