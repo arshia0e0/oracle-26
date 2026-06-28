@@ -77,10 +77,13 @@ function buildSpread(
 export default function MatchCard({
   match,
   href,
+  id,
   showReasoning = false,
 }: {
   match: MatchWithDetails;
   href?: string;
+  // Anchor id (e.g. "match-123") so the knockout bracket can jump to this card.
+  id?: string;
   // Each model's one-sentence "why". Off in list views (too noisy) and on
   // for the standalone card on a match's own page.
   showReasoning?: boolean;
@@ -265,10 +268,10 @@ export default function MatchCard({
 
   if (href) {
     return (
-      <Link href={href} className="matchcard reveal">
+      <Link id={id} href={href} className="matchcard reveal">
         {body}
       </Link>
     );
   }
-  return <div className="matchcard reveal">{body}</div>;
+  return <div id={id} className="matchcard reveal">{body}</div>;
 }

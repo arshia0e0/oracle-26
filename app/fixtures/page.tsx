@@ -5,6 +5,7 @@
 
 import Link from "next/link";
 import MatchCard from "@/components/MatchCard";
+import Bracket from "@/components/Bracket";
 import { prisma } from "@/lib/db";
 import type { MatchWithDetails } from "@/components/MatchCard";
 
@@ -148,6 +149,9 @@ export default async function FixturesPage({
   const stages = STAGE_ORDER.filter((s) =>
     filtered.some((m) => m.stage === s)
   );
+  // The bracket sits above the cards and only covers the knockout rounds that
+  // are in view; every node links down to its card via the #match-{id} anchor.
+  const knockoutMatches = filtered.filter((m) => m.stage !== "GROUP");
 
   return (
     <div className="wrap page">
@@ -177,6 +181,8 @@ export default async function FixturesPage({
         ))}
       </div>
 
+      {knockoutMatches.length > 0 && <Bracket matches={knockoutMatches} />}
+
       {filtered.length === 0 ? (
         <p className="notice reveal">
           No matches found
@@ -204,6 +210,7 @@ export default async function FixturesPage({
                       <MatchCard
                         key={match.id}
                         match={match}
+                        id={`match-${match.id}`}
                         href={`/matches/${match.id}`}
                       />
                     ))}
