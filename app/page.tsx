@@ -97,7 +97,14 @@ export default async function Home() {
     buildProphetRows(),
     getStarCards(),
     prisma.match.findFirst({
-      where: { status: "SCHEDULED", date: { gte: new Date() } },
+      // Ignore half-decided knockout ties (TBD sentinel = team id 0): the hero
+      // scoreboard needs a fixture with both sides and an oracle call.
+      where: {
+        status: "SCHEDULED",
+        date: { gte: new Date() },
+        homeTeamId: { not: 0 },
+        awayTeamId: { not: 0 },
+      },
       orderBy: { date: "asc" },
       include: {
         homeTeam: true,

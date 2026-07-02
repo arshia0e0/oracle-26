@@ -1082,6 +1082,30 @@ a.kbt:hover {
 /* sticky-nav offset so an anchored card isn't hidden under the header */
 .matchcard { scroll-margin-top: 88px; }
 
+/* Desktop: the full tree must be visible with no horizontal scroll. Break the
+   bracket out of the 1180px content column to near-full viewport width and
+   drop the forced min-widths so the flex columns shrink to fit; team names
+   already ellipsize, so nodes stay legible. Narrow screens below keep the
+   scrollable fallback. */
+@media (min-width: 1024px) {
+  .kb-wrap {
+    width: min(1720px, 96vw);
+    margin-left: calc((100% - min(1720px, 96vw)) / 2);
+    overflow-x: visible;
+  }
+  .kb { min-width: 0; }
+  .kb-half { min-width: 0; }
+  .kb-round, .kb-round--round_of_32 { min-width: 0; }
+  .kb-center { flex: 0 0 150px; }
+}
+/* Narrower desktops: tighten the nodes and gutters so eight columns + the
+   centre still fit without spilling. */
+@media (min-width: 1024px) and (max-width: 1440px) {
+  .kb { --bk-c: 12px; }
+  .kbt-row { padding: 0.3rem 0.35rem; gap: 0.3rem; }
+  .kb-center { flex: 0 0 132px; padding: 0 0.4rem; }
+}
+
 @media (max-width: 720px) {
   .kb-wrap { padding: 1.2rem 0.8rem; }
   .kb { min-width: 920px; }

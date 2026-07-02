@@ -9,7 +9,7 @@ import { upsertConsensusPrediction } from "./consensus";
 import { prisma } from "./db";
 import { buildMatchPrompt, MATCH_AI_MODELS } from "./predictor";
 import { scoreMatch } from "./scoring";
-import { syncAll } from "./sync";
+import { syncAll, TBD_TEAM_ID } from "./sync";
 
 export interface DailyUpdateSummary {
   synced: number;
@@ -44,6 +44,10 @@ async function predictUpcomingMatches(
   const matches = await prisma.match.findMany({
     where: {
       status: "SCHEDULED",
+      // Skip half-decided knockout ties: an oracle can't call a match whose
+      // opponent (the TBD sentinel) isn't known yet.
+      homeTeamId: { not: TBD_TEAM_ID },
+      awayTeamId: { not: TBD_TEAM_ID },
       ...dateFilter,
     },
     include: {

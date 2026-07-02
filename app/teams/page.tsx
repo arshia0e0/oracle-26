@@ -13,6 +13,8 @@ export const metadata = {
 
 export default async function TeamsPage() {
   const teams = await prisma.team.findMany({
+    // Exclude the "TBD" knockout placeholder — it isn't a real squad.
+    where: { group: { not: "TBD" } },
     orderBy: [{ group: "asc" }, { name: "asc" }],
   });
 

@@ -16,6 +16,24 @@ export interface SyncResult {
   matchesSkipped: number;
 }
 
+// Sentinel "to-be-decided" team. A knockout tie often has one side known
+// (the winner of an already-played match) while the other is still pending.
+// football-data.org reports the unknown side with a null team id. Rather than
+// dropping the whole match — which would hide a team that has *already*
+// advanced — we store it with this placeholder on the undecided side. Its id
+// is 0, which never collides with a real football-data.org team id, and it is
+// excluded from squad listings and the predict step.
+export const TBD_TEAM_ID = 0;
+
+async function ensureTbdTeam(): Promise<void> {
+  const data = { name: "TBD", code: "TBD", group: "TBD", flagUrl: "" };
+  await prisma.team.upsert({
+    where: { id: TBD_TEAM_ID },
+    create: { id: TBD_TEAM_ID, ...data },
+    update: data,
+  });
+}
+
 // Map football-data.org stage values onto the schema's stage values.
 const STAGE_MAP: Record<string, string> = {
   GROUP_STAGE: "GROUP",
@@ -111,15 +129,17 @@ async function syncMatches(
   let skipped = 0;
 
   for (const match of matches) {
-    // Knockout matches without decided participants have null team IDs.
-    if (match.homeTeam.id == null || match.awayTeam.id == null) {
+    // Knockout matches without decided participants have null team IDs. Keep a
+    // tie as soon as *one* side is known (a team that has advanced) and stand
+    // the TBD sentinel in for the pending side; only skip when both are unknown.
+    if (match.homeTeam.id == null && match.awayTeam.id == null) {
       skipped++;
       continue;
     }
 
     const data = {
-      homeTeamId: match.homeTeam.id,
-      awayTeamId: match.awayTeam.id,
+      homeTeamId: match.homeTeam.id ?? TBD_TEAM_ID,
+      awayTeamId: match.awayTeam.id ?? TBD_TEAM_ID,
       matchday: match.matchday ?? 0,
       date: new Date(match.utcDate),
       stage: mapStage(match.stage),
@@ -152,6 +172,10 @@ export async function syncAll(): Promise<SyncResult> {
 
   const playersSynced = await syncTeams(teams, groupMap);
   console.log(`Synced ${teams.length} teams and ${playersSynced} players.`);
+
+  // The TBD placeholder must exist before any half-decided knockout tie that
+  // references it on its pending side.
+  await ensureTbdTeam();
 
   const { synced, skipped } = await syncMatches(matches);
   console.log(

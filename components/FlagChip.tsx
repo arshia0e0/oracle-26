@@ -14,8 +14,11 @@ export default function FlagChip({
   const h = size === "lg" ? 44 : 38;
   return (
     <span className="kit-chip" style={{ width: w, height: h }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={team.flagUrl} alt={`${team.name} flag`} />
+      {/* A TBD placeholder side has no crest — leave the chip empty. */}
+      {team.flagUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={team.flagUrl} alt={`${team.name} flag`} />
+      )}
     </span>
   );
 }

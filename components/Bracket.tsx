@@ -17,19 +17,71 @@ const SIDE_ROUNDS = [
 
 type Cell = MatchWithDetails | null;
 
+// Official FIFA 2026 knockout topology, given as football-data.org match ids in
+// bracket order — top-to-bottom of the full single-column tree. The two-sided
+// layout below takes the first half of each round as the LEFT side and the
+// second half as the RIGHT, and consecutive pairs feed the next round. Kickoff
+// date does NOT follow the bracket (the feed cross-schedules halves), so the
+// order is pinned here; ids not listed fall back to date order, appended last.
+// These ids are stable for the WC competition feed and identical in dev.db and
+// Turso (both synced from the same source).
+const BRACKET_ORDER: Record<number, number> = Object.fromEntries(
+  [
+    // Round of 32 — left half (rows 1–8) then right half (rows 9–16)
+    537417, 537418, 537415, 537416, 537422, 537421, 537420, 537419,
+    537423, 537424, 537425, 537426, 537429, 537430, 537428, 537427,
+    // Round of 16 — left (rows 1–4) then right (rows 5–8)
+    537376, 537375, 537380, 537379, 537377, 537378, 537382, 537381,
+    // Quarter-finals (left 2, right 2)
+    537383, 537384, 537385, 537386,
+    // Semi-finals (left, right)
+    537387, 537388,
+    // Final
+    537390,
+  ].map((id, i) => [id, i] as const)
+);
+
+// Where each stage's block starts inside BRACKET_ORDER, so a match's rank maps
+// to an absolute slot within its stage (rank − base). Matches must land at
+// their fixed slot even when neighbouring ties are still undecided and absent
+// from the DB — packing present matches sequentially would drag a right-half
+// tie into the left column.
+const STAGE_BASE: Record<string, number> = {
+  ROUND_OF_32: 0,
+  ROUND_OF_16: 16,
+  QUARTER: 24,
+  SEMI: 28,
+};
+
 function sideCells(
   matches: MatchWithDetails[],
   stage: string,
   perSide: number
 ): { left: Cell[]; right: Cell[] } {
-  const all = matches
-    .filter((m) => m.stage === stage)
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
-  const left: Cell[] = [];
-  const right: Cell[] = [];
-  for (let i = 0; i < perSide; i++) left.push(all[i] ?? null);
-  for (let i = 0; i < perSide; i++) right.push(all[perSide + i] ?? null);
-  return { left, right };
+  const all = matches.filter((m) => m.stage === stage);
+  const cells: Cell[] = new Array(perSide * 2).fill(null);
+  const base = STAGE_BASE[stage] ?? 0;
+
+  const unranked: MatchWithDetails[] = [];
+  for (const m of all) {
+    const rank = BRACKET_ORDER[m.id];
+    const slot = rank === undefined ? -1 : rank - base;
+    if (slot >= 0 && slot < cells.length && cells[slot] === null) {
+      cells[slot] = m;
+    } else {
+      unranked.push(m);
+    }
+  }
+  // Ids not pinned in BRACKET_ORDER fall into the remaining empty slots by
+  // kickoff date, so an unexpected feed id still renders somewhere sensible.
+  unranked.sort((a, b) => a.date.getTime() - b.date.getTime());
+  for (const m of unranked) {
+    const free = cells.indexOf(null);
+    if (free === -1) break;
+    cells[free] = m;
+  }
+
+  return { left: cells.slice(0, perSide), right: cells.slice(perSide) };
 }
 
 function TieRow({
@@ -47,7 +99,7 @@ function TieRow({
 }) {
   return (
     <span className={"kbt-row" + (win ? " is-win" : "") + (dim ? " is-dim" : "")}>
-      {showFlag && (
+      {showFlag && team.flagUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img className="kbt-flag" src={team.flagUrl} alt="" aria-hidden="true" />
       )}
@@ -121,12 +173,13 @@ function Column({
   cells: Cell[];
   side: "left" | "right";
 }) {
-  const showFlags = stage === "ROUND_OF_32";
+  // Flags on every round now — a side that has advanced past the Round of 32
+  // should keep its flag as it moves up the tree.
   return (
     <div className={"kb-round kb-round--" + stage.toLowerCase()}>
       {cells.map((m, i) => (
         <div className="kb-slot" key={m ? m.id : `tbd-${stage}-${side}-${i}`}>
-          <Tie m={m} showFlags={showFlags} flip={side === "right" && showFlags} />
+          <Tie m={m} showFlags flip={side === "right"} />
         </div>
       ))}
     </div>
@@ -157,7 +210,7 @@ export default function Bracket({ matches }: { matches: MatchWithDetails[] }) {
         <div className="kb-center">
           <span className="kb-center__title">Final</span>
           <div className="kb-final">
-            <Tie m={finalMatch} />
+            <Tie m={finalMatch} showFlags />
           </div>
           <svg
             className="kb-trophy"
