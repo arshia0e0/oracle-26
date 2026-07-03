@@ -21,6 +21,7 @@ const STAGE_ORDER = [
   "ROUND_OF_16",
   "QUARTER",
   "SEMI",
+  "THIRD_PLACE",
   "FINAL",
 ] as const;
 
@@ -30,6 +31,7 @@ const STAGE_TITLES: Record<string, string> = {
   ROUND_OF_16: "Round of 16",
   QUARTER: "Quarter Finals",
   SEMI: "Semi Finals",
+  THIRD_PLACE: "Third Place Play-off",
   FINAL: "Final",
 };
 

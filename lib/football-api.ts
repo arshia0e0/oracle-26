@@ -44,6 +44,9 @@ export interface ApiMatch {
   homeTeam: ApiTeamRef;
   awayTeam: ApiTeamRef;
   score: {
+    // Decides knockout ties even after extra time / penalties, where
+    // fullTime alone can't tell you who advanced.
+    winner?: "HOME_TEAM" | "AWAY_TEAM" | "DRAW" | null;
     fullTime: { home: number | null; away: number | null };
   };
 }
