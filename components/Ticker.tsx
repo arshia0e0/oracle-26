@@ -4,6 +4,7 @@
 
 import { prisma } from "@/lib/db";
 import { getAIMeta } from "@/lib/ai-meta";
+import { penaltiesLabel } from "@/lib/match-result";
 import { buildProphetRows } from "@/lib/prophets";
 
 type Item = [string, string];
@@ -57,9 +58,10 @@ async function buildItems(): Promise<Item[]> {
       const tag = lastFinished.group
         ? `GROUP ${lastFinished.group}`
         : "FULL TIME";
+      const pens = penaltiesLabel(lastFinished);
       items.push([
         tag,
-        `${lastFinished.homeTeam.code} ${lastFinished.homeScore}–${lastFinished.awayScore} ${lastFinished.awayTeam.code} · FT`,
+        `${lastFinished.homeTeam.code} ${lastFinished.homeScore}–${lastFinished.awayScore} ${lastFinished.awayTeam.code} · ${pens ? pens.toUpperCase() : "FT"}`,
       ]);
     }
     const leader = rows[0];

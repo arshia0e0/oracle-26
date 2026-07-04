@@ -8,6 +8,7 @@ import { readFile } from "fs/promises";
 import path from "path";
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/db";
+import { penaltiesLabel } from "@/lib/match-result";
 
 export const dynamic = "force-dynamic";
 export const alt = "ORACLE /26 — match prediction";
@@ -51,7 +52,14 @@ export default async function Image({ params }: { params: { id: string } }) {
     : match
     ? STAGE_LABELS[match.stage] ?? match.stage
     : "";
-  const tag = finished ? "Full time" : live ? "Live" : "Six AIs have called it";
+  const pens = match && finished ? penaltiesLabel(match) : null;
+  const tag = finished
+    ? pens
+      ? `Full time · ${pens}`
+      : "Full time"
+    : live
+    ? "Live"
+    : "Six AIs have called it";
 
   const fontData = await readFile(
     path.join(process.cwd(), "public/fonts/Anton-Regular.ttf")

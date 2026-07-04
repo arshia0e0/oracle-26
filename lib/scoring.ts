@@ -13,6 +13,7 @@
 //   - Correct Golden Ball:      150 pts
 
 import { prisma } from "./db";
+import { matchWinner, type Side } from "./match-result";
 
 export const TOURNAMENT_POINTS = {
   winner: 100,
@@ -89,23 +90,56 @@ export interface LeaderboardRow {
   winnerCorrect: number;
 }
 
-// -1 = away win, 0 = draw, 1 = home win
-function outcome(homeScore: number, awayScore: number): number {
-  return Math.sign(homeScore - awayScore);
+export interface ActualResult {
+  // Score at the end of play (regulation + extra time), excluding penalties.
+  home: number;
+  away: number;
+  // Shootout score; non-null only when the tie was decided on penalties.
+  homePenalties: number | null;
+  awayPenalties: number | null;
 }
 
+export interface PredictedResult {
+  home: number;
+  away: number;
+  // For a predicted draw in a knockout tie, the side the model backed to win
+  // the shootout ("HOME" | "AWAY"). Null for decisive scorelines and group
+  // draws, where the scoreline itself already implies the winner.
+  penaltyWinner: Side | null;
+}
+
+// The side a predicted scoreline points to, using the model's shootout pick
+// to break a predicted draw when it named one.
+function predictedSide(p: PredictedResult): Side {
+  if (p.home > p.away) return "HOME";
+  if (p.away > p.home) return "AWAY";
+  return p.penaltyWinner ?? "DRAW";
+}
+
+/**
+ * Scores a prediction against a finished result.
+ *
+ * Goal-difference and exact-score are judged on the actual scoreline the match
+ * finished on (regulation + extra time, penalties excluded) — so a 1-1 tie won
+ * on penalties still rewards a predicted 1-1 as an exact score. The winner
+ * point goes to whoever correctly called who *advanced*: for a shootout that's
+ * the penalty winner, matched against the model's own shootout pick when it
+ * predicted a draw.
+ */
 export function scorePrediction(
-  actualHome: number,
-  actualAway: number,
-  predictedHome: number,
-  predictedAway: number
+  actual: ActualResult,
+  predicted: PredictedResult
 ): ScoreBreakdown {
-  const winner =
-    outcome(predictedHome, predictedAway) === outcome(actualHome, actualAway);
-  const goalDiff =
-    predictedHome - predictedAway === actualHome - actualAway;
+  const actualWinner = matchWinner({
+    homeScore: actual.home,
+    awayScore: actual.away,
+    homePenalties: actual.homePenalties,
+    awayPenalties: actual.awayPenalties,
+  });
+  const winner = predictedSide(predicted) === actualWinner;
+  const goalDiff = predicted.home - predicted.away === actual.home - actual.away;
   const exactScore =
-    predictedHome === actualHome && predictedAway === actualAway;
+    predicted.home === actual.home && predicted.away === actual.away;
 
   const points =
     (winner ? 3 : 0) + (goalDiff ? 2 : 0) + (exactScore ? 5 : 0);
@@ -144,10 +178,18 @@ export async function scoreMatch(matchId: number): Promise<void> {
 
   for (const prediction of predictions) {
     const breakdown = scorePrediction(
-      match.homeScore,
-      match.awayScore,
-      prediction.predictedHomeScore,
-      prediction.predictedAwayScore
+      {
+        home: match.homeScore,
+        away: match.awayScore,
+        homePenalties: match.homePenalties,
+        awayPenalties: match.awayPenalties,
+      },
+      {
+        home: prediction.predictedHomeScore,
+        away: prediction.predictedAwayScore,
+        penaltyWinner:
+          (prediction.predictedPenaltyWinner as Side | null) ?? null,
+      }
     );
 
     await prisma.leaderboardEntry.upsert({
@@ -166,8 +208,12 @@ export async function scoreMatch(matchId: number): Promise<void> {
       },
     });
 
+    const pens =
+      match.homePenalties !== null && match.awayPenalties !== null
+        ? ` (${match.homePenalties}-${match.awayPenalties} pens)`
+        : "";
     console.log(
-      `[${prediction.aiModel}] predicted ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}, actual ${match.homeScore}-${match.awayScore}: ${breakdown.points} pts ` +
+      `[${prediction.aiModel}] predicted ${prediction.predictedHomeScore}-${prediction.predictedAwayScore}, actual ${match.homeScore}-${match.awayScore}${pens}: ${breakdown.points} pts ` +
         `(winner: ${breakdown.winner}, goalDiff: ${breakdown.goalDiff}, exactScore: ${breakdown.exactScore})`
     );
   }

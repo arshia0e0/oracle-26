@@ -7,9 +7,24 @@
 
 import { upsertConsensusPrediction } from "./consensus";
 import { prisma } from "./db";
+import type { Side } from "./match-result";
 import { buildMatchPrompt, MATCH_AI_MODELS } from "./predictor";
-import { scoreMatch } from "./scoring";
+import { normalizeName, scoreMatch } from "./scoring";
 import { syncAll, TBD_TEAM_ID } from "./sync";
+
+// Resolves a model's free-text shootout pick to the side it names, or null if
+// it doesn't clearly match either team (tolerating accent/punctuation noise).
+export function penaltyWinnerSide(
+  rawName: string | null,
+  homeName: string,
+  awayName: string
+): Side | null {
+  if (!rawName) return null;
+  const n = normalizeName(rawName);
+  if (n === normalizeName(homeName)) return "HOME";
+  if (n === normalizeName(awayName)) return "AWAY";
+  return null;
+}
 
 export interface DailyUpdateSummary {
   synced: number;
@@ -88,19 +103,28 @@ async function predictUpcomingMatches(
       const prediction = await ai.predict(prompt);
       if (!prediction) continue; // errors were already logged by the predictor
 
+      const penaltyWinner = penaltyWinnerSide(
+        prediction.penaltyWinner,
+        match.homeTeam.name,
+        match.awayTeam.name
+      );
       await prisma.prediction.create({
         data: {
           aiModel: ai.name,
           matchId: match.id,
           predictedHomeScore: prediction.homeScore,
           predictedAwayScore: prediction.awayScore,
+          predictedPenaltyWinner: penaltyWinner,
           reasoning: prediction.reasoning,
           confidence: prediction.confidence,
         },
       });
       saved++;
+      const pensNote = penaltyWinner
+        ? ` (pens: ${penaltyWinner === "HOME" ? match.homeTeam.name : match.awayTeam.name})`
+        : "";
       console.log(
-        `[${ai.name}] predicted ${prediction.homeScore}-${prediction.awayScore}`
+        `[${ai.name}] predicted ${prediction.homeScore}-${prediction.awayScore}${pensNote}`
       );
     }
     if (saved > 0) {

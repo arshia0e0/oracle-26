@@ -8,6 +8,7 @@ import Link from "next/link";
 import FlagChip from "@/components/FlagChip";
 import { CONSENSUS_MODEL_NAME, getAIMeta } from "@/lib/ai-meta";
 import { teamAccent } from "@/lib/country-themes";
+import { matchWinner, penaltiesLabel } from "@/lib/match-result";
 import type {
   LeaderboardEntry,
   Match,
@@ -95,10 +96,12 @@ export default function MatchCard({
     match.leaderboardEntries.map((e) => [e.aiModel, e.pointsEarned])
   );
 
-  const homeWin =
-    finished && (match.homeScore ?? 0) > (match.awayScore ?? 0);
-  const awayWin =
-    finished && (match.awayScore ?? 0) > (match.homeScore ?? 0);
+  // Winner accounts for a shootout, so a 1-1 tie won on penalties still
+  // highlights the side that advanced.
+  const winnerSide = finished ? matchWinner(match) : "DRAW";
+  const homeWin = winnerSide === "HOME";
+  const awayWin = winnerSide === "AWAY";
+  const pens = finished ? penaltiesLabel(match) : null;
 
   // Individual models drive the spread; the consensus row drives the meter.
   const individual = match.predictions.filter(
@@ -154,7 +157,10 @@ export default function MatchCard({
             </span>
           </div>
           <div className="mc-score">
-            <span className="mc-score__big">{big}</span>
+            <span className="mc-score__big">
+              {big}
+              {pens && <span className="mc-score__pens">({pens})</span>}
+            </span>
             <span className="mc-score__tag">
               {live && <span className="live-dot" aria-hidden="true" />}
               {tag}
@@ -245,6 +251,14 @@ export default function MatchCard({
                   </span>
                   <span className="pred__score data">
                     {p.predictedHomeScore}–{p.predictedAwayScore}
+                    {p.predictedPenaltyWinner && (
+                      <span className="pred__pens">
+                        {" "}
+                        {(p.predictedPenaltyWinner === "HOME"
+                          ? match.homeTeam.code
+                          : match.awayTeam.code) + " pens"}
+                      </span>
+                    )}
                   </span>
                   {finished && (
                     <span

@@ -6,6 +6,7 @@
 // visible from the first kickoff. Connector lines are pure CSS (see globals).
 
 import type { MatchWithDetails } from "@/components/MatchCard";
+import { matchWinner, wentToPenalties } from "@/lib/match-result";
 
 // Each knockout round and how many ties live on ONE side of the tree.
 const SIDE_ROUNDS = [
@@ -87,12 +88,16 @@ function sideCells(
 function TieRow({
   team,
   score,
+  pens,
   win,
   dim,
   showFlag,
 }: {
   team: MatchWithDetails["homeTeam"];
   score: number | null;
+  // Shootout goals for this side, shown small next to the score; null if the
+  // tie wasn't decided on penalties.
+  pens: number | null;
   win: boolean;
   dim: boolean;
   showFlag: boolean;
@@ -105,7 +110,12 @@ function TieRow({
       )}
       <span className="kbt-code">{team.code}</span>
       <span className="kbt-name">{team.name}</span>
-      {score !== null && <span className="kbt-score">{score}</span>}
+      {score !== null && (
+        <span className="kbt-score">
+          {score}
+          {pens !== null && <span className="kbt-pens">({pens})</span>}
+        </span>
+      )}
     </span>
   );
 }
@@ -134,8 +144,11 @@ function Tie({
 
   const finished = m.status === "FINISHED";
   const live = m.status === "LIVE";
-  const homeWin = finished && (m.homeScore ?? 0) > (m.awayScore ?? 0);
-  const awayWin = finished && (m.awayScore ?? 0) > (m.homeScore ?? 0);
+  // Winner accounts for a penalty shootout (a level tie is decided on pens).
+  const winnerSide = finished ? matchWinner(m) : "DRAW";
+  const homeWin = winnerSide === "HOME";
+  const awayWin = winnerSide === "AWAY";
+  const pens = finished && wentToPenalties(m);
 
   return (
     <a
@@ -149,6 +162,7 @@ function Tie({
       <TieRow
         team={m.homeTeam}
         score={finished ? m.homeScore : null}
+        pens={pens ? m.homePenalties : null}
         win={homeWin}
         dim={finished && !homeWin}
         showFlag={showFlags}
@@ -156,6 +170,7 @@ function Tie({
       <TieRow
         team={m.awayTeam}
         score={finished ? m.awayScore : null}
+        pens={pens ? m.awayPenalties : null}
         win={awayWin}
         dim={finished && !awayWin}
         showFlag={showFlags}

@@ -47,7 +47,16 @@ export interface ApiMatch {
     // Decides knockout ties even after extra time / penalties, where
     // fullTime alone can't tell you who advanced.
     winner?: "HOME_TEAM" | "AWAY_TEAM" | "DRAW" | null;
+    // REGULAR | EXTRA_TIME | PENALTY_SHOOTOUT (only on finished ties).
+    duration?: string | null;
+    // NOTE: for a PENALTY_SHOOTOUT the API folds the shootout INTO fullTime
+    // (fullTime = regularTime + extraTime + penalties, e.g. 1-1 + 4-2 = "5-3").
+    // The true match result is regularTime (+ extraTime); the shootout is
+    // `penalties`. See resultScore() in lib/sync.ts.
     fullTime: { home: number | null; away: number | null };
+    regularTime?: { home: number | null; away: number | null } | null;
+    extraTime?: { home: number | null; away: number | null } | null;
+    penalties?: { home: number | null; away: number | null } | null;
   };
 }
 

@@ -6,6 +6,7 @@
 
 import "dotenv/config";
 import { upsertConsensusPrediction } from "../lib/consensus";
+import { penaltyWinnerSide } from "../lib/daily-update";
 import { prisma } from "../lib/db";
 import { buildMatchPrompt, MATCH_AI_MODELS } from "../lib/predictor";
 
@@ -70,6 +71,11 @@ async function main() {
         matchId,
         predictedHomeScore: prediction.homeScore,
         predictedAwayScore: prediction.awayScore,
+        predictedPenaltyWinner: penaltyWinnerSide(
+          prediction.penaltyWinner,
+          match.homeTeam.name,
+          match.awayTeam.name
+        ),
         reasoning: prediction.reasoning,
         confidence: prediction.confidence,
       },

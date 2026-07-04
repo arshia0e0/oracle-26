@@ -29,6 +29,8 @@ export async function upsertConsensusPrediction(
       awayScore: p.predictedAwayScore,
       reasoning: "",
       confidence: p.confidence,
+      // Already stored as a "HOME"/"AWAY" side; the ensemble votes on these.
+      penaltyWinner: p.predictedPenaltyWinner,
     }))
   );
   if (!consensus) return false;
@@ -40,12 +42,14 @@ export async function upsertConsensusPrediction(
       matchId,
       predictedHomeScore: consensus.homeScore,
       predictedAwayScore: consensus.awayScore,
+      predictedPenaltyWinner: consensus.penaltyWinner,
       reasoning: consensus.reasoning,
       confidence: consensus.confidence,
     },
     update: {
       predictedHomeScore: consensus.homeScore,
       predictedAwayScore: consensus.awayScore,
+      predictedPenaltyWinner: consensus.penaltyWinner,
       reasoning: consensus.reasoning,
       confidence: consensus.confidence,
     },

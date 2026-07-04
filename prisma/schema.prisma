@@ -48,8 +48,14 @@ model Match {
   stage      String // GROUP | ROUND_OF_32 | ROUND_OF_16 | QUARTER | SEMI | FINAL
   venue      String
   status     String // SCHEDULED | LIVE | FINISHED
+  // Score at the end of play (regulation + extra time), i.e. EXCLUDING any
+  // penalty shootout. For a knockout tie level after extra time this is the
+  // drawn scoreline (e.g. 1-1); the shootout lives in home/awayPenalties.
   homeScore  Int?
   awayScore  Int?
+  // Penalty-shootout score, non-null only for matches decided on penalties.
+  homePenalties Int?
+  awayPenalties Int?
   group      String?
 
   homeTeam           Team               @relation("HomeTeam", fields: [homeTeamId], references: [id])
@@ -64,6 +70,10 @@ model Prediction {
   matchId            Int
   predictedHomeScore Int
   predictedAwayScore Int
+  // For a predicted draw in a knockout tie, which side the model expects to
+  // win the penalty shootout: "HOME" | "AWAY". Null otherwise (a decisive
+  // scoreline already names a winner, and group draws need no shootout pick).
+  predictedPenaltyWinner String?
   reasoning          String
   confidence         Int? // model's self-reported confidence, 0–100
   createdAt          DateTime @default(now())

@@ -1054,6 +1054,7 @@ a.kbt:hover {
   font-variant-numeric: tabular-nums; flex: 0 0 auto; margin-left: auto;
 }
 .kbt--flip .kbt-score { margin-left: 0; margin-right: auto; }
+.kbt-pens { font-size: 0.62em; margin-left: 0.15em; opacity: 0.85; }
 .kbt-row.is-win .kbt-code { color: var(--chalk); }
 .kbt-row.is-win .kbt-score { color: var(--grass); }
 .kbt-row.is-dim { opacity: 0.5; }
@@ -1127,6 +1128,7 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
 .mc-team__name { font-family: var(--display); text-transform: uppercase; font-size: 1.1rem; letter-spacing: 0.02em; text-align: center; line-height: 0.95; }
 .mc-score { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
 .mc-score__big { font-family: var(--display); font-size: 2.1rem; line-height: 0.85; color: var(--grass); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mc-score__pens { font-size: 0.42em; margin-left: 0.3em; color: var(--chalk-faint); vertical-align: 0.4em; letter-spacing: 0.02em; }
 .mc-score__tag { font-family: var(--mono); font-size: 0.52rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--chalk-faint); }
 .mc-meta { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--chalk-faint); text-align: center; margin-top: 1.1rem; }
 
@@ -1144,6 +1146,7 @@ a.matchcard:hover { border-color: rgba(120,255,170,0.35); transform: translateY(
 .pred__badge { font-family: var(--mono); font-size: 0.58rem; font-weight: 700; color: var(--ink); background: var(--chalk-dim); text-align: center; padding: 0.18rem 0; }
 .pred__name { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; color: var(--chalk-dim); }
 .pred__score { font-size: 0.82rem; font-weight: 700; color: var(--chalk); }
+.pred__pens { font-size: 0.6rem; font-weight: 600; color: var(--chalk-faint); letter-spacing: 0.03em; }
 .pred__pts { font-size: 0.7rem; width: 52px; text-align: right; }
 .pred__pts.pos { color: var(--grass); }
 .pred__pts.neg { color: #7a7166; }

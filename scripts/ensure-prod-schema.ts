@@ -9,6 +9,9 @@ import { createClient } from "@libsql/client";
 // Columns added after the initial migration that must exist on Turso.
 const REQUIRED_COLUMNS: { table: string; column: string; type: string }[] = [
   { table: "Prediction", column: "confidence", type: "INTEGER" },
+  { table: "Prediction", column: "predictedPenaltyWinner", type: "TEXT" },
+  { table: "Match", column: "homePenalties", type: "INTEGER" },
+  { table: "Match", column: "awayPenalties", type: "INTEGER" },
 ];
 
 async function main() {

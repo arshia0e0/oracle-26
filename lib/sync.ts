@@ -66,6 +66,45 @@ function mapStatus(status: string): string {
   }
 }
 
+/**
+ * The real match result plus any penalty-shootout score.
+ *
+ * football-data.org folds the shootout INTO fullTime for a PENALTY_SHOOTOUT
+ * (fullTime = regularTime + extraTime + penalties). So for those ties we
+ * subtract the penalties back out to recover the actual scoreline the match
+ * finished on (e.g. fullTime 5-3 with penalties 4-2 → a 1-1 result), and keep
+ * the shootout separately. Every other match reports fullTime as the result.
+ */
+export function resultScore(match: ApiMatch): {
+  home: number | null;
+  away: number | null;
+  homePenalties: number | null;
+  awayPenalties: number | null;
+} {
+  const ft = match.score.fullTime;
+  const pens = match.score.penalties;
+  if (
+    pens &&
+    pens.home != null &&
+    pens.away != null &&
+    ft.home != null &&
+    ft.away != null
+  ) {
+    return {
+      home: ft.home - pens.home,
+      away: ft.away - pens.away,
+      homePenalties: pens.home,
+      awayPenalties: pens.away,
+    };
+  }
+  return {
+    home: ft.home,
+    away: ft.away,
+    homePenalties: null,
+    awayPenalties: null,
+  };
+}
+
 /** "GROUP_A" -> "A" */
 function normalizeGroup(group: string | null): string | null {
   if (!group) return null;
@@ -140,6 +179,7 @@ async function syncMatches(
       continue;
     }
 
+    const result = resultScore(match);
     const data = {
       homeTeamId: match.homeTeam.id ?? TBD_TEAM_ID,
       awayTeamId: match.awayTeam.id ?? TBD_TEAM_ID,
@@ -148,8 +188,10 @@ async function syncMatches(
       stage: mapStage(match.stage),
       venue: match.venue ?? "",
       status: mapStatus(match.status),
-      homeScore: match.score.fullTime.home,
-      awayScore: match.score.fullTime.away,
+      homeScore: result.home,
+      awayScore: result.away,
+      homePenalties: result.homePenalties,
+      awayPenalties: result.awayPenalties,
       group: normalizeGroup(match.group),
     };
     await prisma.match.upsert({
@@ -222,8 +264,10 @@ async function advanceKnockoutWinners(matches: ApiMatch[]): Promise<number> {
           stage: mapStage(apiNext.stage),
           venue: apiNext.venue ?? "",
           status: mapStatus(apiNext.status),
-          homeScore: apiNext.score.fullTime.home,
-          awayScore: apiNext.score.fullTime.away,
+          homeScore: resultScore(apiNext).home,
+          awayScore: resultScore(apiNext).away,
+          homePenalties: resultScore(apiNext).homePenalties,
+          awayPenalties: resultScore(apiNext).awayPenalties,
           group: normalizeGroup(apiNext.group),
         },
       });

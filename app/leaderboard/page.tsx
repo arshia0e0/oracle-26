@@ -6,6 +6,7 @@ import type { CSSProperties } from "react";
 import CountUp from "@/components/CountUp";
 import { getAIMeta } from "@/lib/ai-meta";
 import { prisma } from "@/lib/db";
+import { matchWinner } from "@/lib/match-result";
 import { buildProphetRows, pct } from "@/lib/prophets";
 import type { ProphetRow } from "@/lib/prophets";
 
@@ -153,14 +154,19 @@ export default async function LeaderboardPage() {
     }),
   ]);
 
-  const champion =
+  // The final can be decided on penalties, so read the winner via matchWinner
+  // rather than comparing scores (a shootout leaves the scoreline level).
+  const finalWinner =
     finishedFinal &&
     finishedFinal.homeScore !== null &&
-    finishedFinal.awayScore !== null &&
-    finishedFinal.homeScore !== finishedFinal.awayScore
-      ? finishedFinal.homeScore > finishedFinal.awayScore
-        ? finishedFinal.homeTeam.name
-        : finishedFinal.awayTeam.name
+    finishedFinal.awayScore !== null
+      ? matchWinner(finishedFinal)
+      : null;
+  const champion =
+    finalWinner === "HOME"
+      ? finishedFinal!.homeTeam.name
+      : finalWinner === "AWAY"
+      ? finishedFinal!.awayTeam.name
       : null;
 
   const anyScored = rows.some((r) => r.matchesPredicted > 0);

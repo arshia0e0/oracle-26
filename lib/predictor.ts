@@ -16,6 +16,11 @@ export interface MatchPrediction {
   // Model's self-reported confidence in this scoreline, 0–100. Null when a
   // model didn't return one (e.g. predictions made before this field existed).
   confidence: number | null;
+  // For a predicted draw in a knockout tie, the name of the team the model
+  // expects to win the penalty shootout, exactly as it returned it. Null for
+  // decisive scorelines and group-stage draws. Mapped to a "HOME"/"AWAY" side
+  // at store time (lib/daily-update.ts), where the team names are known.
+  penaltyWinner: string | null;
 }
 
 export interface TournamentOutcome {
@@ -40,16 +45,26 @@ export function buildMatchPrompt(
   homePlayers: Player[],
   awayPlayers: Player[]
 ): string {
+  // Group matches can end level; knockout ties cannot — if the model calls a
+  // draw it must also say who wins the shootout, which decides the winner point.
+  const isKnockout = match.stage !== "GROUP";
+  const knockoutNote = isKnockout
+    ? `\nThis is a knockout match — it cannot end in a draw. Give the score at the end of play (regulation plus extra time). If that score is level (a draw), you MUST also set "penaltyWinner" to the name of the team you expect to win the penalty shootout — exactly "${homeTeam.name}" or "${awayTeam.name}".`
+    : "";
+  const jsonShape = isKnockout
+    ? `{"homeScore": number, "awayScore": number, "penaltyWinner": "${homeTeam.name}" | "${awayTeam.name}" | null (only when you predicted a draw), "confidence": number (0-100, how sure you are of this exact scoreline), "reasoning": "one sentence"}`
+    : `{"homeScore": number, "awayScore": number, "confidence": number (0-100, how sure you are of this exact scoreline), "reasoning": "one sentence"}`;
+
   return `You are a football analyst. Based on the following data, predict the exact score for this match.
 
 Home team: ${homeTeam.name}, FIFA ranking: ${homeTeam.fifaRanking ?? "unknown"}, Group: ${homeTeam.group}
 Key players: ${formatPlayers(homePlayers)}
 Away team: ${awayTeam.name}, FIFA ranking: ${awayTeam.fifaRanking ?? "unknown"}, Group: ${awayTeam.group}
 Key players: ${formatPlayers(awayPlayers)}
-Stage: ${match.stage}, Venue: ${match.venue}, Date: ${match.date.toISOString()}
+Stage: ${match.stage}, Venue: ${match.venue}, Date: ${match.date.toISOString()}${knockoutNote}
 
 Respond ONLY in this exact JSON format, no other text:
-{"homeScore": number, "awayScore": number, "confidence": number (0-100, how sure you are of this exact scoreline), "reasoning": "one sentence"}`;
+${jsonShape}`;
 }
 
 // `includePlayers: false` produces a compact prompt (team names and
@@ -112,11 +127,21 @@ function parsePrediction(text: string): MatchPrediction {
   ) {
     throw new Error(`Response JSON has wrong shape: ${text.slice(0, 200)}`);
   }
+  const homeScore = Math.round(parsed.homeScore);
+  const awayScore = Math.round(parsed.awayScore);
+  // A shootout pick only matters when the model actually called a draw.
+  const penaltyWinner =
+    homeScore === awayScore &&
+    typeof parsed.penaltyWinner === "string" &&
+    parsed.penaltyWinner.trim()
+      ? parsed.penaltyWinner.trim()
+      : null;
   return {
-    homeScore: Math.round(parsed.homeScore),
-    awayScore: Math.round(parsed.awayScore),
+    homeScore,
+    awayScore,
     reasoning: parsed.reasoning,
     confidence: parseConfidence(parsed.confidence),
+    penaltyWinner,
   };
 }
 
@@ -358,13 +383,25 @@ export function buildConsensusPrediction(
   const confidences = predictions
     .map((p) => p.confidence)
     .filter((c): c is number => c !== null);
+  const homeScore = mean(predictions.map((p) => p.homeScore));
+  const awayScore = mean(predictions.map((p) => p.awayScore));
+  // If the averaged scoreline is a draw, the ensemble also needs a shootout
+  // pick: the majority of whatever picks the individual models supplied.
+  const penaltyPicks = predictions
+    .map((p) => p.penaltyWinner)
+    .filter((w): w is string => w != null);
+  const penaltyWinner =
+    homeScore === awayScore && penaltyPicks.length > 0
+      ? majorityPick(penaltyPicks)
+      : null;
   return {
-    homeScore: mean(predictions.map((p) => p.homeScore)),
-    awayScore: mean(predictions.map((p) => p.awayScore)),
+    homeScore,
+    awayScore,
     reasoning: `Consensus of ${predictions.length} model${
       predictions.length === 1 ? "" : "s"
     } — the average of their predicted scorelines.`,
     confidence: confidences.length > 0 ? mean(confidences) : null,
+    penaltyWinner,
   };
 }
 
