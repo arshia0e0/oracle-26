@@ -65,7 +65,7 @@ football-data.org (fixtures, results, squads)
 ```
 
 - **Prediction locking:** predictions are create-only with a unique `(aiModel, matchId)` constraint and a `createdAt` timestamp; only future `SCHEDULED` matches are ever sent to the models, so calls cannot be made or edited after kickoff. Failed models are retried on later runs, pre-kickoff only.
-- **Consensus logic** (`lib/predictor.ts` → `buildConsensusPrediction` / `buildTournamentConsensus`): mean scoreline rounded to whole goals; mean confidence; majority vote for shootout picks when the average lands level, and per-prize majority vote for tournament picks (accent-insensitive name grouping, ties toward the earliest pick).
+- **Consensus logic** (`lib/predictor.ts` → `buildConsensusPrediction` / `buildTournamentConsensus`): home and away goals are each the arithmetic mean of that side's figures across the models that predicted the match, rounded with JavaScript's `Math.round` (exact halves round up: 1.5 → 2); confidence is the mean of reported confidences, rounded the same way; majority vote for shootout picks when the average lands level, and per-prize majority vote for tournament picks (accent-insensitive name grouping, ties toward the earliest pick).
 
 ## Scoring Logic
 

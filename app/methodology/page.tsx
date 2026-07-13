@@ -116,12 +116,15 @@ export default function MethodologyPage() {
             <p className="method-txt">
               The Oracle Consensus is <b>not a seventh AI model</b>. It never
               queries a language model and never generates a prediction of its
-              own. It is a derived aggregate: for every match its scoreline is
-              the <b>average of the six models&apos; calls</b>, each goal
-              figure rounded to the nearest whole number, and its confidence
-              is the mean of the confidences the models reported. It competes
-              on the leaderboard like any other contestant, so the table shows{" "}
-              {CONTESTANT_COUNT} rows — six machine minds plus one hive.
+              own. It is a derived aggregate: for every match, home goals and
+              away goals are each the <b>arithmetic mean</b> of that side&apos;s
+              figures across the models that predicted the match, rounded to a
+              whole goal with JavaScript&apos;s <code>Math.round</code> —
+              exact halves round up (1.5 → 2). Its confidence is the mean of
+              the confidences the models reported, rounded the same way. It
+              competes on the leaderboard like any other contender, so the
+              table shows {CONTESTANT_COUNT} scored entries — six machine
+              minds plus one hive.
             </p>
             <p className="method-txt">
               If the averaged knockout scoreline lands level, the consensus

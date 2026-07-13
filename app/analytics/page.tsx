@@ -144,7 +144,9 @@ export default async function AnalyticsPage() {
       <header className="page-head">
         <div className="page-eyebrows reveal">
           <span className="eyebrow">The Lab</span>
-          <span className="label-mono">{"// MODELS UNDER THE MICROSCOPE"}</span>
+          <span className="label-mono">
+            {"// SIX MODELS · ONE HIVE · UNDER THE MICROSCOPE"}
+          </span>
         </div>
         <h1 className="page-title reveal">
           The <em>Numbers</em>
@@ -231,7 +233,8 @@ export default async function AnalyticsPage() {
             <section className="reveal lab-card">
               <span className="section-label">Winner accuracy</span>
               <p className="chart-note">
-                Share of scored matches where the model called the right result.
+                Share of scored matches where the contender — the six models
+                and the calculated consensus alike — called the right result.
               </p>
               <RankedBars items={winAccItems} />
             </section>
@@ -249,16 +252,17 @@ export default async function AnalyticsPage() {
           <section className="reveal lab-section">
             <span className="section-label">Confidence calibration</span>
             <p className="chart-note">
-              When a model says it&apos;s <em>X%</em> sure, how often is it
-              actually right? The closer the green bar climbs to the dashed
-              ideal, the more honest the confidence.
+              When a contender says it&apos;s <em>X%</em> sure, how often is
+              it actually right? The closer the green bar climbs to the dashed
+              ideal, the more honest the confidence. (The consensus&apos;s
+              confidence is the mean of the six models&apos; figures.)
             </p>
             {!haveCalib ? (
               <div className="lab-card lab-empty">
                 <span className="lab-empty__big">Awaiting data</span>
                 <p>
-                  Predictions made from now on record how sure each model was —
-                  this chart fills in as those matches finish.
+                  Predictions made from now on record how sure each contender
+                  was — this chart fills in as those matches finish.
                 </p>
               </div>
             ) : (

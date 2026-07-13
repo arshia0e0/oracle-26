@@ -1618,6 +1618,7 @@ a.lineup-head { text-decoration: none; }
 @media (max-width: 880px) { .method-grid { grid-template-columns: 1fr; } }
 .method-txt { font-size: 0.86rem; line-height: 1.62; color: var(--chalk-dim); }
 .method-txt b { color: var(--chalk); }
+.method-txt code { font-family: var(--mono); font-size: 0.78em; color: var(--grass); }
 .method-row {
   display: flex;
   justify-content: space-between;

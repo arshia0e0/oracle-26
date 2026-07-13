@@ -7,6 +7,7 @@
     "build": "prisma generate && tsx scripts/ensure-prod-schema.ts && next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "tsx scripts/check-invariants.ts",
     "sync-data": "tsx scripts/sync-data.ts",
     "predict-match": "tsx scripts/predict-match.ts",
     "predict-tournament": "tsx scripts/predict-tournament.ts",
