@@ -86,7 +86,7 @@ export default async function MatchPage({ params }: Props) {
       <header className="page-head" style={{ paddingTop: "1.6rem" }}>
         <div className="page-eyebrows reveal">
           <span className="eyebrow">{eyebrow}</span>
-          <span className="label-mono">{"// FIVE CALLS ON RECORD"}</span>
+          <span className="label-mono">{"// SIX MODELS · ONE CONSENSUS"}</span>
         </div>
         <h1
           className="page-title reveal"

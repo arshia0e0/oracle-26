@@ -166,8 +166,9 @@ export default async function FixturesPage({
           Scores &amp; <em>Fixtures</em>
         </h1>
         <p className="page-intro reveal">
-          Every match of the tournament — with all five oracles&apos; calls
-          and the points each banked once the final whistle blew.
+          Every match of the tournament — all six models&apos; calls, the
+          consensus verdict, and the points each banked once the final
+          whistle blew.
         </p>
       </header>
 

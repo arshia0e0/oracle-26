@@ -1,5 +1,6 @@
-// Builds match-prediction prompts and queries five AI models
-// (Gemini, GPT, DeepSeek R1, Llama, Qwen) for exact-score predictions.
+// Builds match-prediction prompts and queries the six AI models
+// (GPT, Gemini, DeepSeek R1, Llama, Qwen, Nemotron) for exact-score
+// predictions, plus the derived Oracle Consensus ensemble.
 //
 // Requires in .env: GEMINI_API_KEY, OPENAI_API_KEY, DEEPSEEK_API_KEY
 // (official DeepSeek platform key), GROQ_API_KEY (serves Llama and Qwen)

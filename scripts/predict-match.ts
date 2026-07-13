@@ -1,4 +1,4 @@
-// Gets score predictions for one match from all five AI models
+// Gets score predictions for one match from all six AI models
 // and saves them to the Prediction table. AIs that already predicted
 // this match are skipped, so it's safe to re-run.
 //

@@ -59,7 +59,7 @@ export default async function Image({ params }: { params: { id: string } }) {
       : "Full time"
     : live
     ? "Live"
-    : "Six AIs have called it";
+    : "Six models and the hive have called it";
 
   const fontData = await readFile(
     path.join(process.cwd(), "public/fonts/Anton-Regular.ttf")

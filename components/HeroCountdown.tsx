@@ -1,6 +1,8 @@
 // Live countdown to the next kick-off in the ORACLE countdown-slab style.
-// Renders zeroed digits on the server and during hydration, then the
-// real numbers take over client-side — no hydration mismatch.
+// The server render computes the real remaining time (so crawlers and no-JS
+// visitors see a correct snapshot, not zeros); the client then ticks it every
+// second. The digits carry suppressHydrationWarning because a second or two
+// legitimately passes between the server render and hydration.
 
 "use client";
 
@@ -31,7 +33,7 @@ export default function HeroCountdown({
   venueLine: string;
 }) {
   const target = new Date(targetIso).getTime();
-  const [parts, setParts] = useState<Parts | null>(null);
+  const [parts, setParts] = useState<Parts>(() => partsUntil(target));
 
   useEffect(() => {
     setParts(partsUntil(target));
@@ -39,12 +41,7 @@ export default function HeroCountdown({
     return () => clearInterval(timer);
   }, [target]);
 
-  const { days, hours, minutes, seconds } = parts ?? {
-    days: 0,
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  };
+  const { days, hours, minutes, seconds } = parts;
   const units: [number, string][] = [
     [days, "Days"],
     [hours, "Hrs"],
@@ -60,7 +57,7 @@ export default function HeroCountdown({
           {units.map(([value, label], i) => (
             <Fragment key={label}>
               <div className="cd-unit">
-                <span className="cd-unit__num data">
+                <span className="cd-unit__num data" suppressHydrationWarning>
                   {String(value).padStart(2, "0")}
                 </span>
                 <span className="cd-unit__lab">{label}</span>

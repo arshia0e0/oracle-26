@@ -3,16 +3,17 @@
 // lines if the database is empty or unreachable.
 
 import { prisma } from "@/lib/db";
-import { getAIMeta } from "@/lib/ai-meta";
+import { LEAGUE_TAGLINE } from "@/lib/ai-meta";
 import { penaltiesLabel } from "@/lib/match-result";
 import { buildProphetRows } from "@/lib/prophets";
+import { SCORING_TAGLINE } from "@/lib/scoring";
 
 type Item = [string, string];
 
 const BRAND_ITEMS: Item[] = [
   ["ORACLE", "THE BEAUTIFUL GAME, COMPUTED"],
-  ["LEAGUE", "FIVE MACHINES · ONE TROPHY"],
-  ["SCORING", "WINNER 3 · GOAL DIFF +2 · EXACT +5"],
+  ["LEAGUE", LEAGUE_TAGLINE],
+  ["SCORING", SCORING_TAGLINE],
 ];
 
 function shortDate(date: Date): string {
@@ -68,7 +69,7 @@ async function buildItems(): Promise<Item[]> {
     if (leader && leader.matchesPredicted > 0) {
       items.push([
         "FORM",
-        `${getAIMeta(leader.aiModel).short} leads on ${leader.totalPoints} pts`,
+        `${leader.aiModel} leads on ${leader.totalPoints} pts`,
       ]);
       const exact = rows.reduce((s, r) => s + r.perfectPredictions, 0);
       items.push(["EXACT SCORES", `${exact} calls landed`]);

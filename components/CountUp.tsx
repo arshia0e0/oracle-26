@@ -1,11 +1,28 @@
-// A stat number that rolls up from zero the first time it scrolls into view,
-// in the ORACLE mono "data readout" style. Respects reduced-motion (shows the
-// final value immediately). Safe to drop into server-rendered pages.
+// A stat number in the ORACLE mono "data readout" style. The real value is
+// rendered in the server HTML — crawlers, no-JS visitors, screen readers and
+// reduced-motion users always see the correct number. For everyone else the
+// visible digits roll up from zero the first time they scroll into view,
+// while an sr-only copy of the final value keeps assistive tech from ever
+// announcing a mid-animation frame.
 
 "use client";
 
 import { animate, useInView } from "framer-motion";
+import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
+
+// Visually hidden but exposed to screen readers (the classic sr-only recipe).
+const SR_ONLY: CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: "hidden",
+  clip: "rect(0 0 0 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+};
 
 export default function CountUp({
   value,
@@ -20,14 +37,13 @@ export default function CountUp({
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-8% 0px" });
-  const [display, setDisplay] = useState(0);
+  // Starts at the final value so the server HTML and the hydration render
+  // both show the real number — no mismatch and no flash of zero.
+  const [display, setDisplay] = useState(value);
 
   useEffect(() => {
     if (!inView) return;
-    const reduce = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-    if (reduce) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setDisplay(value);
       return;
     }
@@ -46,8 +62,14 @@ export default function CountUp({
       className={className}
       style={{ fontVariantNumeric: "tabular-nums" }}
     >
-      {display}
-      {suffix}
+      <span aria-hidden="true">
+        {display}
+        {suffix}
+      </span>
+      <span style={SR_ONLY}>
+        {value}
+        {suffix}
+      </span>
     </span>
   );
 }

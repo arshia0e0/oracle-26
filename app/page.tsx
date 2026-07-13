@@ -1,6 +1,7 @@
 // ORACLE homepage: stadium-banner hero with the next-fixture scoreboard
-// and a live countdown, the six prophets as Panini stickers, and the
-// form table. All data is fetched live from the database.
+// and a live countdown, the seven contenders (six models + the consensus)
+// as Panini stickers, and the form table. All data is fetched live from
+// the database.
 
 import { existsSync } from "fs";
 import path from "path";

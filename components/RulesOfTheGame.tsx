@@ -1,9 +1,14 @@
 // "Rules of the Game" — explains how the AI competition works and how
-// points are earned. Pure server markup, no client JS. The numbers here
-// mirror lib/scoring.ts exactly (3 / +2 / +5 per match, max 10; tournament
-// picks pay 100 / 150 / 150 once the cup is decided).
+// points are earned. Pure server markup, no client JS. All numbers come
+// from lib/scoring.ts so this panel can never drift from the real rules.
 
-import { TOURNAMENT_POINTS } from "@/lib/scoring";
+import Link from "next/link";
+import { TABLE_TAGLINE } from "@/lib/ai-meta";
+import {
+  MATCH_POINTS,
+  MATCH_POINTS_MAX,
+  TOURNAMENT_POINTS,
+} from "@/lib/scoring";
 
 export default function RulesOfTheGame() {
   return (
@@ -16,7 +21,7 @@ export default function RulesOfTheGame() {
         <div className="rules-panel">
           <div className="rules-panel__head">
             <span>The competition</span>
-            <b>SIX ORACLES · ONE TABLE</b>
+            <b>{TABLE_TAGLINE}</b>
           </div>
 
           <div className="rules-step">
@@ -24,9 +29,12 @@ export default function RulesOfTheGame() {
             <div>
               <div className="rules-step__title">The call</div>
               <p className="rules-step__txt">
-                Before kickoff, every oracle studies the fixture — FIFA
-                rankings, key players, stage and venue — and locks in an exact
-                scoreline. One call per match, no edits once it&apos;s in.
+                Before kickoff, each of the six models studies the fixture —
+                team rankings, key players, stage and venue — and locks in an
+                exact scoreline. One call per match, no edits once it&apos;s
+                in. The Oracle Consensus doesn&apos;t think for itself: it is
+                the six calls averaged into one, entered as a seventh row on
+                the table.
               </p>
             </div>
           </div>
@@ -38,7 +46,7 @@ export default function RulesOfTheGame() {
               <p className="rules-step__txt">
                 At the final whistle each prediction is graded against the
                 real result. The three checks stack — nail all of them and a
-                single match pays the full <b>10 points</b>.
+                single match pays the full <b>{MATCH_POINTS_MAX} points</b>.
               </p>
             </div>
           </div>
@@ -48,9 +56,12 @@ export default function RulesOfTheGame() {
             <div>
               <div className="rules-step__title">The table</div>
               <p className="rules-step__txt">
-                Total points decide the Form Table; level oracles are split by
-                perfect scorelines. Tournament picks pay out once, when the
-                cup is lifted.
+                Total points decide the Form Table; level contenders are split
+                by perfect scorelines. Tournament picks pay out once, when the
+                cup is lifted.{" "}
+                <Link href="/methodology" className="rules-link">
+                  Full methodology →
+                </Link>
               </p>
             </div>
           </div>
@@ -60,7 +71,7 @@ export default function RulesOfTheGame() {
         <div className="rules-panel">
           <div className="rules-panel__head">
             <span>Match points</span>
-            <b>STACK · MAX 10</b>
+            <b>STACK · MAX {MATCH_POINTS_MAX}</b>
           </div>
 
           <div className="rules-row">
@@ -68,21 +79,21 @@ export default function RulesOfTheGame() {
             <span className="rules-row__label">
               Correct winner — or a correctly called draw
             </span>
-            <span className="rules-row__pts">3</span>
+            <span className="rules-row__pts">{MATCH_POINTS.winner}</span>
           </div>
           <div className="rules-row">
             <span className="tag gd">goal diff</span>
             <span className="rules-row__label">
               Correct goal difference on top
             </span>
-            <span className="rules-row__pts">+2</span>
+            <span className="rules-row__pts">+{MATCH_POINTS.goalDiff}</span>
           </div>
           <div className="rules-row">
             <span className="tag exact">exact</span>
             <span className="rules-row__label">
               The exact scoreline — the perfect-prediction bonus
             </span>
-            <span className="rules-row__pts">+5</span>
+            <span className="rules-row__pts">+{MATCH_POINTS.exactScore}</span>
           </div>
 
           <p className="rules-note">

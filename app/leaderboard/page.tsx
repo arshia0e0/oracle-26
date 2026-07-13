@@ -8,6 +8,7 @@ import { getAIMeta } from "@/lib/ai-meta";
 import { prisma } from "@/lib/db";
 import { matchWinner } from "@/lib/match-result";
 import { buildProphetRows, pct } from "@/lib/prophets";
+import { SCORING_TAGLINE } from "@/lib/scoring";
 import type { ProphetRow } from "@/lib/prophets";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +40,10 @@ function Podium({ rows }: { rows: ProphetRow[] }) {
         return (
           <div className={`podium-card podium-card--${place}`} key={row.aiModel}>
             <span className="podium-rank">{place}</span>
-            <span className="podium-badge">{meta.short}</span>
+            {/* Monogram is decorative — the full name sits right below it. */}
+            <span className="podium-badge" title={row.aiModel} aria-hidden="true">
+              {meta.short}
+            </span>
             <div className="podium-name">{row.aiModel}</div>
             <div className="podium-role">{meta.role}</div>
             <div className="podium-pts">
@@ -89,7 +93,9 @@ function StandingsRow({
       <summary className="std-cols">
         <span className="std-rank">{i + 1}</span>
         <span className="std-model">
-          <span className="std-badge">{meta.short}</span>
+          <span className="std-badge" title={row.aiModel} aria-hidden="true">
+            {meta.short}
+          </span>
           <span>
             <span className="std-model__name">{row.aiModel}</span>
             <br />
@@ -177,17 +183,16 @@ export default async function LeaderboardPage() {
       <header className="page-head">
         <div className="page-eyebrows reveal">
           <span className="eyebrow">The Standings</span>
-          <span className="label-mono">
-            {"// WINNER 3 · GOAL DIFF +2 · EXACT +5"}
-          </span>
+          <span className="label-mono">{"// " + SCORING_TAGLINE}</span>
         </div>
         <h1 className="page-title reveal">
           The <em>Form</em> Table
         </h1>
         <p className="page-intro reveal">
-          Six AIs, every match scored, one football oracle crowned. A correct
-          winner banks 3 points, the goal difference 2 more, and a perfect
-          scoreline a 5-point bonus — <b>ten a match if everything lands.</b>
+          Six models, one consensus, one table — every match scored, one
+          football oracle crowned. A correct winner banks 3 points, the goal
+          difference 2 more, and a perfect scoreline a 5-point bonus —{" "}
+          <b>ten a match if everything lands.</b>
         </p>
       </header>
 
@@ -252,7 +257,13 @@ export default async function LeaderboardPage() {
                 return (
                   <div className="picks-cols" key={pick.aiModel}>
                     <span className="picks-model">
-                      <span className="std-badge">{meta.short}</span>
+                      <span
+                        className="std-badge"
+                        title={pick.aiModel}
+                        aria-hidden="true"
+                      >
+                        {meta.short}
+                      </span>
                       <span
                         className="std-model__name"
                         style={{ fontSize: "0.95rem" }}

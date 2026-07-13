@@ -2,6 +2,7 @@
 // crowd-vs-mind duel, ranked accuracy and points charts (with model badges),
 // and a confidence-calibration chart. Pure server-rendered CSS/SVG.
 
+import Link from "next/link";
 import CountUp from "@/components/CountUp";
 import { CONSENSUS_MODEL_NAME, getAIMeta } from "@/lib/ai-meta";
 import { prisma } from "@/lib/db";
@@ -35,7 +36,10 @@ function RankedBars({ items }: { items: BarItem[] }) {
             key={it.name}
           >
             <span className="bar-row__rank">{i + 1}</span>
-            <span className="bar-row__badge">{meta.short}</span>
+            {/* Monogram is decorative — the full name sits right beside it. */}
+            <span className="bar-row__badge" title={it.name} aria-hidden="true">
+              {meta.short}
+            </span>
             <span className="bar-row__name">{it.name}</span>
             <span className="bar-row__track">
               <span className="bar-row__fill" style={{ width: `${it.pct}%` }} />
@@ -122,11 +126,17 @@ export default async function AnalyticsPage() {
   const totalExact = scored.reduce((s, r) => s + r.perfectPredictions, 0);
   const accLeader = byWinAcc[0];
 
-  const band: [string | number, string][] = [
-    [scored.length, "Models Ranked"],
-    [matchesScored, "Matches Scored"],
-    [totalExact, "Exact Scores"],
-    [accLeader ? getAIMeta(accLeader.aiModel).short : "—", "Accuracy Leader"],
+  // `scored` includes the Oracle Consensus row, so this counts contenders
+  // (up to 7 = six models + the consensus), not independent models.
+  const band: { num: string | number; label: string; title?: string }[] = [
+    { num: scored.length, label: "Contenders Ranked" },
+    { num: matchesScored, label: "Matches Scored" },
+    { num: totalExact, label: "Exact Scores" },
+    {
+      num: accLeader ? getAIMeta(accLeader.aiModel).short : "—",
+      label: "Accuracy Leader",
+      title: accLeader ? accLeader.aiModel : undefined,
+    },
   ];
 
   return (
@@ -142,7 +152,12 @@ export default async function AnalyticsPage() {
         <p className="page-intro reveal">
           Points crown a winner, but the data tells the deeper story — who
           actually reads the game, who just rides the favourites, and whether
-          the wisdom of the crowd beats the cleverest single mind.
+          the wisdom of the crowd beats the cleverest single mind. Every
+          number here is computed exactly as described in the{" "}
+          <Link href="/methodology" className="rules-link">
+            methodology
+          </Link>
+          .
         </p>
       </header>
 
@@ -154,12 +169,18 @@ export default async function AnalyticsPage() {
       ) : (
         <>
           <div className="prophet-band reveal">
-            {band.map(([num, label]) => (
+            {band.map(({ num, label, title }) => (
               <div className="pb-cell" key={label}>
                 {typeof num === "number" ? (
                   <CountUp className="pb-cell__num" value={num} />
                 ) : (
-                  <span className="pb-cell__num">{num}</span>
+                  <span
+                    className="pb-cell__num"
+                    title={title}
+                    aria-label={title ? `${label}: ${title}` : undefined}
+                  >
+                    {num}
+                  </span>
                 )}
                 <span className="pb-cell__lab">{label}</span>
               </div>

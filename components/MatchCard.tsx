@@ -226,7 +226,14 @@ export default function MatchCard({
             return (
               <div className={"pred" + cls} key={p.aiModel}>
                 <div className="pred__row">
-                  <span className="pred__badge">{aiMeta.short}</span>
+                  {/* Monogram is decorative — the model's full name follows. */}
+                  <span
+                    className="pred__badge"
+                    title={p.aiModel}
+                    aria-hidden="true"
+                  >
+                    {aiMeta.short}
+                  </span>
                   <span className="pred__id">
                     <span className="pred__name">
                       {p.aiModel}

@@ -8,7 +8,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "ORACLE — World Cup 2026 AI Prediction League",
   description:
-    "The beautiful game, computed. Five AI models predict every FIFA World Cup 2026 match — exact score, every time. See who calls it best.",
+    "The beautiful game, computed. Six AI models predict every FIFA World Cup 2026 match — exact score, every time — while the Oracle Consensus, the average of all six, tests whether the crowd can beat its smartest member.",
 };
 
 export default function RootLayout({

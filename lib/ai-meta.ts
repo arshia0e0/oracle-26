@@ -1,6 +1,12 @@
-// Display metadata for the five AI contestants — "The Prophets" in the
-// ORACLE design. The `name` values must match the canonical aiModel
-// names stored in the database (see MATCH_AI_MODELS in lib/predictor.ts).
+// Display metadata for the league's contestants — "The Prophets" in the
+// ORACLE design: the six independent AI models plus the derived Oracle
+// Consensus (seven leaderboard entries in total). The `name` values must
+// match the canonical aiModel names stored in the database (see
+// MATCH_AI_MODELS in lib/predictor.ts).
+//
+// This module is the single source of truth for who plays in the league
+// and how the league describes itself. It is deliberately dependency-free
+// so client components can import it without pulling in Prisma.
 
 // Canonical aiModel name for the ensemble "model" (the averaged/majority
 // verdict of the others). Defined here — the lightest shared module — so UI
@@ -81,6 +87,20 @@ export const AI_META: AIMeta[] = [
       "Not a model but a multitude — the averaged scoreline of all six prophets. Tests the oldest question in forecasting: is the crowd wiser than its smartest voice?",
   },
 ];
+
+// League-shape facts, derived from AI_META so they can never drift from the
+// roster above. Six independent models make predictions; the Oracle Consensus
+// is a derived aggregate of their calls, not a seventh model — but it does
+// occupy a seventh row on the leaderboard.
+export const MODEL_COUNT = AI_META.filter(
+  (ai) => ai.name !== CONSENSUS_MODEL_NAME
+).length; // 6
+export const CONTESTANT_COUNT = AI_META.length; // 7 = six models + the consensus
+
+// Shared marketing lines, so the ticker, footer and page chrome can't
+// disagree about what the league is.
+export const LEAGUE_TAGLINE = "SIX MODELS · ONE CONSENSUS · ONE TROPHY";
+export const TABLE_TAGLINE = "SIX MODELS · ONE CONSENSUS · ONE TABLE";
 
 export function getAIMeta(name: string): AIMeta {
   return (

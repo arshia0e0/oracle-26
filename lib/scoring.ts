@@ -15,6 +15,18 @@
 import { prisma } from "./db";
 import { matchWinner, type Side } from "./match-result";
 
+// Per-match points. The three checks stack, so MATCH_POINTS_MAX is their sum.
+export const MATCH_POINTS = {
+  winner: 3,
+  goalDiff: 2,
+  exactScore: 5,
+} as const;
+export const MATCH_POINTS_MAX =
+  MATCH_POINTS.winner + MATCH_POINTS.goalDiff + MATCH_POINTS.exactScore; // 10
+
+// The scoring rule as the UI chrome prints it (ticker, page eyebrows).
+export const SCORING_TAGLINE = `WINNER ${MATCH_POINTS.winner} · GOAL DIFF +${MATCH_POINTS.goalDiff} · EXACT +${MATCH_POINTS.exactScore}`;
+
 export const TOURNAMENT_POINTS = {
   winner: 100,
   goldenBoot: 150,
@@ -142,7 +154,9 @@ export function scorePrediction(
     predicted.home === actual.home && predicted.away === actual.away;
 
   const points =
-    (winner ? 3 : 0) + (goalDiff ? 2 : 0) + (exactScore ? 5 : 0);
+    (winner ? MATCH_POINTS.winner : 0) +
+    (goalDiff ? MATCH_POINTS.goalDiff : 0) +
+    (exactScore ? MATCH_POINTS.exactScore : 0);
 
   return { winner, goalDiff, exactScore, points };
 }

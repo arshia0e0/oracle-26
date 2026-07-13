@@ -7,7 +7,7 @@ import path from "path";
 import ProphetPickDeck from "@/components/ProphetPickDeck";
 import CountUp from "@/components/CountUp";
 import ProphetSticker from "@/components/ProphetSticker";
-import { AI_META, getAIMeta } from "@/lib/ai-meta";
+import { AI_META, CONTESTANT_COUNT, getAIMeta } from "@/lib/ai-meta";
 import { COUNTRY_THEMES } from "@/lib/country-themes";
 import { prisma } from "@/lib/db";
 import { buildPlayerResolutionMap } from "@/lib/player-name-match";
@@ -115,11 +115,16 @@ export default async function ProphetsPage() {
   const anyScored = rows.some((r) => r.matchesPredicted > 0);
   const totalExact = rows.reduce((s, r) => s + r.perfectPredictions, 0);
 
-  const band: [string | number, string][] = [
-    [AI_META.length, "Oracles"],
-    [matchesCalled, "Matches Called"],
-    [totalExact, "Exact Scores"],
-    [anyScored && leader ? getAIMeta(leader.aiModel).short : "—", "Current Leader"],
+  // 7 contenders: the six independent models plus the Oracle Consensus.
+  const band: { num: string | number; label: string; title?: string }[] = [
+    { num: CONTESTANT_COUNT, label: "Contenders" },
+    { num: matchesCalled, label: "Matches Called" },
+    { num: totalExact, label: "Exact Scores" },
+    {
+      num: anyScored && leader ? getAIMeta(leader.aiModel).short : "—",
+      label: "Current Leader",
+      title: anyScored && leader ? leader.aiModel : undefined,
+    },
   ];
 
   return (
@@ -141,12 +146,18 @@ export default async function ProphetsPage() {
       </header>
 
       <div className="prophet-band reveal">
-        {band.map(([num, label]) => (
+        {band.map(({ num, label, title }) => (
           <div className="pb-cell" key={label}>
             {typeof num === "number" ? (
               <CountUp className="pb-cell__num" value={num} />
             ) : (
-              <span className="pb-cell__num">{num}</span>
+              <span
+                className="pb-cell__num"
+                title={title}
+                aria-label={title ? `${label}: ${title}` : undefined}
+              >
+                {num}
+              </span>
             )}
             <span className="pb-cell__lab">{label}</span>
           </div>

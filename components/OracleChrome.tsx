@@ -1,6 +1,9 @@
 // Static page chrome for the ORACLE design: the floodlit-night backdrop,
 // the faint chalk pitch markings, and the footer. All purely presentational.
 
+import Link from "next/link";
+import { LEAGUE_TAGLINE } from "@/lib/ai-meta";
+
 export function FieldBg() {
   return <div className="field-bg" aria-hidden="true" />;
 }
@@ -34,7 +37,11 @@ export function Footer() {
           <br />
           WORLD CUP 2026 · AI PREDICTION LEAGUE
           <br />
-          FIVE MACHINES · ONE TROPHY
+          {LEAGUE_TAGLINE}
+          <br />
+          <Link href="/methodology" className="footer__link">
+            HOW IT WORKS · METHODOLOGY →
+          </Link>
         </div>
       </div>
     </footer>
